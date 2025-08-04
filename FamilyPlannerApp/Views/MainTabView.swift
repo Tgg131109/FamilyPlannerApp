@@ -9,6 +9,7 @@ import SwiftUI
 
 // MainTabView defines the primary TabBar layout of the app
 struct MainTabView: View {
+    @StateObject private var appState = AppState()
     // State variable to control the currently selected tab
     @State private var selectedTab: Tab = .home
 

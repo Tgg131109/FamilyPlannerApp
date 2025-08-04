@@ -8,10 +8,19 @@
 import SwiftUI
 
 @main
-struct FamilyPlannerAppApp: App {
+struct FamilyPlannerMockupApp: App {
+    @StateObject private var appState = AppState()
+
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            if appState.isSignedIn {
+                MainTabView()
+                    .environmentObject(appState)
+            } else {
+                WelcomeView()
+                    .environmentObject(appState)
+            }
         }
     }
 }
+

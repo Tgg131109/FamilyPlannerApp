@@ -56,6 +56,7 @@ struct HomeView: View {
                 Spacer() // Pushes content upward
             }
             .navigationTitle("Home")
+//            .background(Color.orange.edgesIgnoringSafeArea(.all))
         }
     }
 }
