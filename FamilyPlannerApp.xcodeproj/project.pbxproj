@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3A8364D22E42947C00656B34 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3A8364D12E42947C00656B34 /* GoogleService-Info.plist */; };
+		3A8364DE2E4299C500656B34 /* FirebaseAI in Frameworks */ = {isa = PBXBuildFile; productRef = 3A8364DD2E4299C500656B34 /* FirebaseAI */; };
+		3A8364E02E4299C500656B34 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 3A8364DF2E4299C500656B34 /* FirebaseAnalytics */; };
+		3A8364E22E4299C500656B34 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 3A8364E12E4299C500656B34 /* FirebaseAuth */; };
+		3A8364E42E4299C500656B34 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 3A8364E32E4299C500656B34 /* FirebaseFirestore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		3A8363372E40E59F00656B34 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +35,7 @@
 		3A8363292E40E59D00656B34 /* FamilyPlannerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyPlannerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3A8363362E40E59F00656B34 /* FamilyPlannerAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyPlannerAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3A8363402E40E59F00656B34 /* FamilyPlannerAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyPlannerAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3A8364D12E42947C00656B34 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +61,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3A8364E02E4299C500656B34 /* FirebaseAnalytics in Frameworks */,
+				3A8364E42E4299C500656B34 /* FirebaseFirestore in Frameworks */,
+				3A8364E22E4299C500656B34 /* FirebaseAuth in Frameworks */,
+				3A8364DE2E4299C500656B34 /* FirebaseAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,6 +92,7 @@
 				3A8363392E40E59F00656B34 /* FamilyPlannerAppTests */,
 				3A8363432E40E59F00656B34 /* FamilyPlannerAppUITests */,
 				3A83632A2E40E59D00656B34 /* Products */,
+				3A8364D12E42947C00656B34 /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -112,6 +126,10 @@
 			);
 			name = FamilyPlannerApp;
 			packageProductDependencies = (
+				3A8364DD2E4299C500656B34 /* FirebaseAI */,
+				3A8364DF2E4299C500656B34 /* FirebaseAnalytics */,
+				3A8364E12E4299C500656B34 /* FirebaseAuth */,
+				3A8364E32E4299C500656B34 /* FirebaseFirestore */,
 			);
 			productName = FamilyPlannerApp;
 			productReference = 3A8363292E40E59D00656B34 /* FamilyPlannerApp.app */;
@@ -195,6 +213,9 @@
 			);
 			mainGroup = 3A8363202E40E59D00656B34;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3A8364DC2E4299C500656B34 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3A83632A2E40E59D00656B34 /* Products */;
 			projectDirPath = "";
@@ -212,6 +233,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3A8364D22E42947C00656B34 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -552,6 +574,40 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3A8364DC2E4299C500656B34 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3A8364DD2E4299C500656B34 /* FirebaseAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3A8364DC2E4299C500656B34 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAI;
+		};
+		3A8364DF2E4299C500656B34 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3A8364DC2E4299C500656B34 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		3A8364E12E4299C500656B34 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3A8364DC2E4299C500656B34 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		3A8364E32E4299C500656B34 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3A8364DC2E4299C500656B34 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3A8363212E40E59D00656B34 /* Project object */;
 }
