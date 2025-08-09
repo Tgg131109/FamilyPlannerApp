@@ -8,40 +8,37 @@
 import SwiftUI
 import CoreLocation
 
-/// Drop-in wrapper that handles permissions + feeds coordinates into WeatherCardView.
+/// Wrapper that uses the shared GlobalLocationCoordinator and centralized throttle.
 struct WeatherCardWithLocationView: View {
-    @StateObject private var location = LocationManager()
-
-    // Dependency injection: pass your weather provider (Mock or WeatherKit)
-    let provider: WeatherProviding
-
+    @EnvironmentObject var location: GlobalLocationCoordinator   // ← shared
+    private let geocoder = ReverseGeocoder()
+    
+    let provider: WeatherProviding = {
+        if #available(iOS 16.0, *) { return WeatherKitService() }
+        else { return MockWeatherService() }
+    }()
+    
+    @State private var weatherVM: WeatherCardViewModel?
+    
     var body: some View {
         Group {
             switch location.authorizationStatus {
             case .notDetermined:
-                // First-time users see a simple prompt
                 VStack(spacing: 12) {
-                    Text("Weather for Your Area")
-                        .font(.headline)
+                    Text("Weather for Your Area").font(.headline)
                     Text("We’ll use your location to show accurate conditions.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.subheadline).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                    Button("Allow Location") {
-                        location.requestWhenInUseAuthorization()
-                    }
-                    .buttonStyle(.borderedProminent)
+                    Button("Allow Location") { location.requestWhenInUseAuthorization() }
+                        .buttonStyle(.borderedProminent)
                 }
                 .padding()
-
+                
             case .denied, .restricted:
-                // Helpful guidance + shortcut to Settings
                 VStack(spacing: 12) {
-                    Text("Location Disabled")
-                        .font(.headline)
+                    Text("Location Disabled").font(.headline)
                     Text("Enable Location in Settings to see local weather.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.subheadline).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     HStack(spacing: 12) {
                         Button("Open Settings") {
@@ -50,48 +47,35 @@ struct WeatherCardWithLocationView: View {
                             }
                         }
                         .buttonStyle(.bordered)
-
-                        Button("Retry") {
-                            location.requestWhenInUseAuthorization()
-                        }
-                        .buttonStyle(.borderedProminent)
+                        Button("Retry") { location.requestWhenInUseAuthorization() }
+                            .buttonStyle(.borderedProminent)
                     }
                 }
                 .padding()
-
+                
             case .authorizedWhenInUse, .authorizedAlways:
-                if let coord = location.lastCoordinate {
-                    // We have coordinates → render the actual Weather Card
-                    WeatherCardView.with(provider: provider, coordinate: coord)
+                if let vm = weatherVM {
+                    WeatherCardView(viewModel: vm)
                 } else {
-                    // Authorized but no fix yet → start and show a spinner
                     VStack(spacing: 8) {
                         ProgressView()
                         Text("Getting your location…").font(.footnote).foregroundStyle(.secondary)
                     }
-                    .task {
-                        // Triggers a one-time start if not already updating
-                        location.startUpdates()
-                    }
                     .padding()
                 }
-
+                
             @unknown default:
                 Text("Unknown location state").foregroundStyle(.secondary)
             }
         }
         .onAppear {
-            // Kick things off on first appearance
-            if location.authorizationStatus == .authorizedWhenInUse || location.authorizationStatus == .authorizedAlways {
+            // Start updates when visible; the coordinator manages churn and errors.
+            if location.authorizationStatus == .authorizedWhenInUse ||
+                location.authorizationStatus == .authorizedAlways {
                 location.startUpdates()
             }
         }
-        .frame(maxWidth: .infinity)
-        .onDisappear {
-            // Optional: stop updates to save battery if this card is transient
-            location.stopUpdates()
-        }
-        // Surface any runtime errors
+        .onDisappear { location.stopUpdates() }
         .overlay(alignment: .bottomLeading) {
             if let err = location.errorMessage {
                 Text(err)
@@ -103,14 +87,70 @@ struct WeatherCardWithLocationView: View {
                     .padding(8)
             }
         }
+        // React when the coordinator publishes a new coordinate (rounded key not needed here).
+        .task(id: location.lastCoordinate?.latitude ?? 0.0) {
+            guard let coord = location.lastCoordinate else { return }
+            
+            // Respect global throttle
+            guard location.shouldFetchNow(for: coord) else { return }
+            
+            // Create VM once per screen life
+            if weatherVM == nil {
+                weatherVM = WeatherCardViewModel(provider: provider, coordinate: coord)
+            }
+            
+            // Fetch weather
+            if let vm = weatherVM {
+                await vm.load()
+            }
+            
+            // Show a quick last known name immediately
+            if let quickName = location.lastPlaceName {
+                if var s = weatherVM?.summary {
+                    s.locationName = quickName
+                    weatherVM?.summary = s
+                } else {
+                    weatherVM?.summary = WeatherSummary(
+                        locationName: quickName, condition: "Loading…", symbolName: "cloud.fill",
+                        temperature: 0, high: 0, low: 0, precipitationChance: 0, windMph: 0
+                    )
+                }
+            }
+            
+            // Reverse geocode city/state
+            // 1) Show last known place name immediately if we have one
+            if let quickName = location.lastPlaceName {
+                if var summary = weatherVM?.summary {
+                    summary.locationName = quickName
+                    weatherVM?.summary = summary
+                } else {
+                    weatherVM?.summary = WeatherSummary(
+                        locationName: quickName, condition: "Loading…", symbolName: "cloud.fill",
+                        temperature: 0, high: 0, low: 0, precipitationChance: 0, windMph: 0
+                    )
+                }
+            }
+            
+            // 2) Resolve (and publish/cache) the current place name
+            let freshName = await location.placeName(for: coord)
+            
+            if freshName != "Current Location" {
+                if var s = weatherVM?.summary {
+                    s.locationName = freshName
+                    weatherVM?.summary = s
+                }
+            }           
+            
+            // Record the fetch globally so other features can honor the same throttling window.
+            location.recordFetch(for: coord)
+        }
     }
 }
 
 // MARK: - Preview
-#Preview("Mock • Uses Norfolk Coord") {
-    WeatherCardWithLocationView(
-        provider: MockWeatherService() // swap with WeatherKitService() when ready (iOS 16+)
-    )
-    .padding()
-    .background(Color(.systemBackground))
+#Preview("Global Coordinator + Mock") {
+    WeatherCardWithLocationView()
+        .environmentObject(GlobalLocationCoordinator.preview())
+        .padding()
+        .background(Color(.systemBackground))
 }

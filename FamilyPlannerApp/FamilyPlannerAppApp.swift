@@ -11,7 +11,8 @@ import Firebase
 @main
 struct FamilyPlannerMockupApp: App {
     @StateObject private var appState = AppState()
-
+    @StateObject private var locationCoordinator = GlobalLocationCoordinator()
+    
     init() {
         FirebaseApp.configure()
     }
@@ -20,9 +21,11 @@ struct FamilyPlannerMockupApp: App {
             if appState.isSignedIn {
                 MainTabView()
                     .environmentObject(appState)
+                    .environmentObject(locationCoordinator)
             } else {
                 WelcomeView()
                     .environmentObject(appState)
+                    .environmentObject(locationCoordinator) 
             }
         }
     }

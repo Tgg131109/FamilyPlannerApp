@@ -10,14 +10,14 @@ import CoreLocation
 
 /// Domain model the UI needs (kept small & stable)
 struct WeatherSummary: Equatable {
-    let locationName: String
-    let condition: String          // e.g., "Clear", "Rain", "Cloudy"
-    let symbolName: String         // SF Symbol for the condition
-    let temperature: Double        // Current temp (°F/°C — your choice)
-    let high: Double               // Daily high
-    let low: Double                // Daily low
-    let precipitationChance: Double // 0.0...1.0
-    let windMph: Double
+    var locationName: String
+    var condition: String          // e.g., "Clear", "Rain", "Cloudy"
+    var symbolName: String         // SF Symbol for the condition
+    var temperature: Double        // Current temp (°F/°C — your choice)
+    var high: Double               // Daily high
+    var low: Double                // Daily low
+    var precipitationChance: Double // 0.0...1.0
+    var windMph: Double
 }
 
 /// Protocol so the view model doesn’t care where data comes from (WeatherKit, mock, etc.)
@@ -32,7 +32,7 @@ struct MockWeatherService: WeatherProviding {
         // Simulate small delay to exercise loading state
         try await Task.sleep(nanoseconds: 300_000_000)
         return WeatherSummary(
-            locationName: "Norfolk, VA",
+            locationName: "Suffolk, VA",
             condition: "Partly Cloudy",
             symbolName: "cloud.sun.fill",
             temperature: 77,
@@ -57,12 +57,15 @@ final class WeatherKitService: WeatherProviding {
         let weather = try await service.weather(for: loc)
 
         // Pick a symbol based on the current condition
-        let symbol = weather.currentWeather.symbolName // WeatherKit already maps to SF Symbols
-
+        var symbol = weather.currentWeather.symbolName // WeatherKit already maps to SF Symbols
         // Use the first daily forecast for hi/lo
         let today = weather.dailyForecast.first
-        let hi = today?.highTemperature.value ?? weather.currentWeather.temperature.value
-        let lo = today?.lowTemperature.value ?? weather.currentWeather.temperature.value
+        // Determine if F or C should be used
+        let useFahrenheit: Bool = !(Locale.current.measurementSystem == .metric)  // US, Bahamas, etc.
+        
+        let temp = useFahrenheit ? weather.currentWeather.temperature.converted(to: .fahrenheit).value : weather.currentWeather.temperature.value
+        let hi = useFahrenheit ? today?.highTemperature.converted(to: .fahrenheit).value : today?.highTemperature.value
+        let lo = useFahrenheit ? today?.lowTemperature.converted(to: .fahrenheit).value : today?.lowTemperature.value
 
         // Try to derive a friendly location label; you can pass one in instead if you prefer
         let locationName = "Current Location"
@@ -71,9 +74,9 @@ final class WeatherKitService: WeatherProviding {
             locationName: locationName,
             condition: weather.currentWeather.condition.description, // e.g., "Clear"
             symbolName: symbol,
-            temperature: weather.currentWeather.temperature.value,
-            high: hi,
-            low: lo,
+            temperature: temp,
+            high: hi ?? weather.currentWeather.temperature.value,
+            low: lo ?? weather.currentWeather.temperature.value,
             precipitationChance: (today?.precipitationChance ?? 0.0),
             windMph: weather.currentWeather.wind.speed.converted(to: .milesPerHour).value
         )

@@ -31,9 +31,9 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         if #available(iOS 16.0, *) {
-                            WeatherCardWithLocationView(provider: WeatherKitService())
+                            WeatherCardWithLocationView()
                         } else {
-                            WeatherCardWithLocationView(provider: MockWeatherService())
+                            WeatherCardWithLocationView()
                         }
                         // Each HomeCardView opens a specific module
                         //                        NavigationLink(destination: CalendarScreen()) {
@@ -74,4 +74,5 @@ struct HomeView: View {
 
 #Preview {
     HomeView(selectedTab: .constant(.home))
+        .environmentObject(GlobalLocationCoordinator.preview())
 }

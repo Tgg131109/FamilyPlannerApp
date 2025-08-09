@@ -78,3 +78,15 @@ extension LocationManager: CLLocationManagerDelegate {
         errorMessage = error.localizedDescription
     }
 }
+
+// MARK: - Equatable key for SwiftUI .task(id:)
+extension LocationManager {
+    /// An Equatable key representing the current coordinate.
+    /// Rounded to 4 decimal places (~11m) to avoid over-triggering on small jitter.
+    var coordinateKey: String {
+        guard let c = lastCoordinate else { return "nil" }
+        let lat = (c.latitude * 10_000).rounded() / 10_000
+        let lon = (c.longitude * 10_000).rounded() / 10_000
+        return "\(lat),\(lon)"
+    }
+}

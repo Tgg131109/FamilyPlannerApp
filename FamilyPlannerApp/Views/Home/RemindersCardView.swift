@@ -12,7 +12,7 @@ struct RemindersCardView: View {
         VStack{
             HStack {
                 // Icon with circular colored background
-                Image(systemName: "calendar")
+                Image(systemName: "exclamationmark.bubble.fill")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                     .padding(4)

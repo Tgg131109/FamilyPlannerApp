@@ -36,6 +36,11 @@ struct WeatherCardView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    Divider().frame(height: 40)
+                    
+                    Text(viewModel.tempString(viewModel.summary?.temperature ?? 0))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                    
                     Spacer()
 
                     // Manual refresh
@@ -51,9 +56,6 @@ struct WeatherCardView: View {
 
                 // Temperature row
                 HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    Text(viewModel.tempString(viewModel.summary?.temperature ?? 0))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-
                     HStack(spacing: 8) {
                         Label(viewModel.tempString(viewModel.summary?.high ?? 0), systemImage: "arrow.up")
                         Label(viewModel.tempString(viewModel.summary?.low ?? 0), systemImage: "arrow.down")
@@ -62,16 +64,16 @@ struct WeatherCardView: View {
                     .foregroundStyle(.secondary)
 
                     Spacer()
+                    
+                    // Details row
+                    HStack(spacing: 16) {
+                        Label(viewModel.percentString(viewModel.summary?.precipitationChance ?? 0.0), systemImage: "cloud.rain")
+                        Label(viewModel.windString(viewModel.summary?.windMph ?? 0.0), systemImage: "wind")
+//                        Spacer()
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 }
-
-                // Details row
-                HStack(spacing: 16) {
-                    Label(viewModel.percentString(viewModel.summary?.precipitationChance ?? 0.0), systemImage: "cloud.rain")
-                    Label(viewModel.windString(viewModel.summary?.windMph ?? 0.0), systemImage: "wind")
-                    Spacer()
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
 
                 // Error banner (if any)
                 if let err = viewModel.errorText {
@@ -88,12 +90,12 @@ struct WeatherCardView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: 120)
-        .onAppear {
-            // Only auto-load the first time the card appears
-            if viewModel.summary == nil && !viewModel.isLoading {
-                Task { await viewModel.load() }
-            }
-        }
+//        .onAppear {
+//            // Only auto-load the first time the card appears
+//            if viewModel.summary == nil && !viewModel.isLoading {
+//                Task { await viewModel.load() }
+//            }
+//        }
     }
 }
 
@@ -107,7 +109,7 @@ extension WeatherCardView {
 
 // MARK: - Preview
 
-#Preview("Mock • Norfolk, VA") {
+#Preview("Mock • Suffolk, VA") {
     WeatherCardView.with(
         provider: MockWeatherService(),
         coordinate: .init(latitude: 36.8508, longitude: -76.2859)
