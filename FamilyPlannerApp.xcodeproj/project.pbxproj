@@ -38,9 +38,22 @@
 		3A8364D12E42947C00656B34 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3A57FAF32E47A8B10014BE61 /* Exceptions for "FamilyPlannerApp" folder in "FamilyPlannerApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3A8363282E40E59D00656B34 /* FamilyPlannerApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3A83632B2E40E59D00656B34 /* FamilyPlannerApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3A57FAF32E47A8B10014BE61 /* Exceptions for "FamilyPlannerApp" folder in "FamilyPlannerApp" target */,
+			);
 			path = FamilyPlannerApp;
 			sourceTree = "<group>";
 		};
@@ -420,6 +433,9 @@
 				DEVELOPMENT_TEAM = 2Q6N42G82W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FamilyPlannerApp/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "“We use your location to show local weather.”";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "“We use your location to show local weather.”";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -448,6 +464,9 @@
 				DEVELOPMENT_TEAM = 2Q6N42G82W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FamilyPlannerApp/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "“We use your location to show local weather.”";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "“We use your location to show local weather.”";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

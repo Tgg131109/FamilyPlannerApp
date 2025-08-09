@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 // The main Home screen for the Family Planner app
 struct HomeView: View {
@@ -20,42 +21,52 @@ struct HomeView: View {
                 Text("\(viewModel.greeting), \(viewModel.username)!")
                     .font(.title2)
                     .bold()
-                    .padding(.horizontal)
                 
+                RemindersCardView()
+                
+                TodayCardView() {
+                    selectedTab = .calendar
+                }
                 // Scrollable stack of navigation cards
                 ScrollView {
                     VStack(spacing: 12) {
+                        if #available(iOS 16.0, *) {
+                            WeatherCardWithLocationView(provider: WeatherKitService())
+                        } else {
+                            WeatherCardWithLocationView(provider: MockWeatherService())
+                        }
                         // Each HomeCardView opens a specific module
                         //                        NavigationLink(destination: CalendarScreen()) {
                         //                            HomeCardView(title: "Calendar", systemImage: "calendar", color: .blue)
                         //                        }
                         
-                        HomeCardView(title: "Calendar", systemImage: "calendar", color: .blue) {
-                            selectedTab = .calendar
-                        }
+//                        HomeCardView(title: "Calendar", systemImage: "calendar", color: .blue) {
+//                            selectedTab = .calendar
+//                        }
                         
-                        HomeCardView(title: "Recipes & Meal Plan", systemImage: "fork.knife", color: .orange) {
-                            selectedTab = .recipes
-                        }
-                        
-                        HomeCardView(title: "Shopping List", systemImage: "cart.fill", color: .green) {
-                            selectedTab = .recipes // optional: route deeper inside recipes later
-                        }
-                        
-                        HomeCardView(title: "Family Chat", systemImage: "bubble.left.and.bubble.right.fill", color: .purple) {
-                            selectedTab = .chat
-                        }
-                        
-                        HomeCardView(title: "Location Map", systemImage: "map.fill", color: .teal) {
-                            selectedTab = .location
-                        }
+//                        HomeCardView(title: "Recipes & Meal Plan", systemImage: "fork.knife", color: .orange) {
+//                            selectedTab = .recipes
+//                        }
+//                        
+//                        HomeCardView(title: "Shopping List", systemImage: "cart.fill", color: .green) {
+//                            selectedTab = .recipes // optional: route deeper inside recipes later
+//                        }
+//                        
+//                        HomeCardView(title: "Family Chat", systemImage: "bubble.left.and.bubble.right.fill", color: .purple) {
+//                            selectedTab = .chat
+//                        }
+//                        
+//                        HomeCardView(title: "Location Map", systemImage: "map.fill", color: .teal) {
+//                            selectedTab = .location
+//                        }
                     }
-                    .padding(.horizontal)
                 }
                 
                 Spacer() // Pushes content upward
             }
+            .padding(.horizontal)
             .navigationTitle("Home")
+            .toolbarVisibility(.hidden, for: .automatic)
 //            .background(Color.orange.edgesIgnoringSafeArea(.all))
         }
     }
