@@ -6,9 +6,34 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
-struct FamilyModel: Codable {
+struct FamilyModel: Codable, Identifiable {
+    @DocumentID var id: String?
     var name: String
-    var ownerId: String
-    var inviteCode: String
+    var organizerId: String
+    var joinCode: String
+    var members: [String: MemberMeta]
+    var createdAt: Date
+    var updatedAt: Date
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        self.organizerId = try c.decodeIfPresent(String.self, forKey: .organizerId) ?? ""
+        self.joinCode = try c.decodeIfPresent(String.self, forKey: .joinCode) ?? ""
+        self.members = try c.decodeIfPresent([String: MemberMeta].self, forKey: .members) ?? [:]
+        self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        self.updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+    }
+    
+    init(id: String?, name: String, organizerId: String, joinCode: String, members: [String: MemberMeta], createdAt: Date?, updatedAt: Date?) {
+        self.id = id
+        self.name = name
+        self.organizerId = organizerId
+        self.joinCode = joinCode
+        self.members = members
+        self.createdAt = createdAt ?? Date()
+        self.updatedAt = updatedAt ?? Date()
+    }
 }

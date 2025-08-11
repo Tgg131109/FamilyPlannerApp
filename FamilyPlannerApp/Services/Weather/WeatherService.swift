@@ -57,7 +57,7 @@ final class WeatherKitService: WeatherProviding {
         let weather = try await service.weather(for: loc)
 
         // Pick a symbol based on the current condition
-        var symbol = weather.currentWeather.symbolName // WeatherKit already maps to SF Symbols
+        let symbol = weather.currentWeather.symbolName // WeatherKit already maps to SF Symbols
         // Use the first daily forecast for hi/lo
         let today = weather.dailyForecast.first
         // Determine if F or C should be used

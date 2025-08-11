@@ -9,7 +9,7 @@ import SwiftUI
 
 // MainTabView defines the primary TabBar layout of the app
 struct MainTabView: View {
-    @StateObject private var appState = AppState()
+//    @StateObject private var appState = AppState()
     // State variable to control the currently selected tab
     @State private var selectedTab: Tab = .home
 
@@ -21,7 +21,7 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // Home tab, passes tab binding to allow programmatic switching
-            HomeView(selectedTab: $selectedTab)
+            HomeView()
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(Tab.home)
 
@@ -58,5 +58,6 @@ struct SettingsView: View { var body: some View { Text("Settings").navigationTit
 
 #Preview {
     MainTabView()
+        .environmentObject(AppSession())
         .environmentObject(GlobalLocationCoordinator.preview())
 }

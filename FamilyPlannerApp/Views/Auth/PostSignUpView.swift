@@ -1,102 +1,113 @@
-import SwiftUI
+//
+//  PostSignUpView.swift
+//  FamilyPlannerApp
+//
+//  Created by Toby Gamble on 8/4/25.
+//
 
-struct PostSignUpView: View {
-    let role: UserRole
-    @EnvironmentObject var appState: AppState
-    
-    @State private var familyName: String = ""
-    @State private var inviteCode: String = ""
-    @State private var successMessage: String?
-    @State private var generatedCode: String?
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            if role == .organizer {
-                // Organizer creates the family
-                TextField("Family Name", text: $familyName)
-                    .textFieldStyle(.roundedBorder)
-                
-                Button("Create Family") {
-                    Task {
-                        do {
-                            let userId = FirebaseAuthService.shared.currentUserId!
-                            let code = try await FirestoreService.shared.createFamily(name: familyName, ownerId: userId)
-                            generatedCode = code
-                            successMessage = "Family created successfully!"
-                        } catch {
-                            successMessage = error.localizedDescription
-                        }
-                    }
-                }
-                .disabled(familyName.isEmpty)
-                .buttonStyle(.borderedProminent)
-                .font(.title)
-                .bold()
-                
-                if let code = generatedCode {
-                    VStack(spacing: 8) {
-                        Text("Your invite code:")
-                            .font(.subheadline)
-                        
-                        Text(code)
-                            .font(.title)
-                            .bold()
-                            .padding(.bottom)
-                        
-                        ShareLink("Share Code", item: code)
-                    }
-                }
-            } else {
-                // Member joins the family
-                TextField("Enter Invite Code", text: $inviteCode)
-                    .textFieldStyle(.roundedBorder)
-                    .autocapitalization(.allCharacters)
-                
-                Button("Join Family") {
-                    Task {
-                        do {
-                            if let familyId = try await FirestoreService.shared.validateInviteCode(inviteCode) {
-                                let userId = FirebaseAuthService.shared.currentUserId!
-                                try await FirestoreService.shared.addUserToFamily(userId: userId, familyId: familyId)
-                                successMessage = "You’ve successfully joined the family!"
-                            } else {
-                                successMessage = "Invalid invite code. Try again."
-                            }
-                        } catch {
-                            successMessage = error.localizedDescription
-                        }
-                    }
-                }
-                .disabled(inviteCode.isEmpty)
-                .buttonStyle(.borderedProminent)
-                .font(.title)
-                .bold()
-            }
-            
-            if let message = successMessage {
-                Text(message)
-                    .foregroundColor(message.contains("success") ? .green : .red)
-                    .padding(.top)
-            }
-            
-            // Done button always available once success
-            if successMessage?.contains("success") == true {
-                Button("Go to Home") {
-                    appState.isSignedIn = true
-                }
-                .padding(.top)
-            }
-            
-            Spacer()
-        }
-        .padding()
-        .navigationTitle("Family Setup")
-    }
-}
+//import SwiftUI
 
-#Preview {
-    NavigationStack {
-        PostSignUpView(role: .organizer)
-            .environmentObject(AppState())
-    }
-}
+//struct PostSignUpView: View {
+//    let role: UserRole
+////    @EnvironmentObject var appState: AppState
+//    @EnvironmentObject var router: AppFlowRouter
+//    
+//    @State private var familyName: String = ""
+//    @State private var inviteCode: String = ""
+//    @State private var generatedCode: String?
+//    @State private var message: String?
+//    @State private var isBusy = false
+//
+//    var body: some View {
+//        VStack(spacing: 16) {
+//            Text("Family Setup").font(.title).bold()
+//
+//            if role == .organizer {
+//                TextField("Family Name", text: $familyName).textFieldStyle(.roundedBorder)
+//
+//                Button {
+//                    Task { await createFamily() }
+//                } label: {
+//                    if isBusy { ProgressView() } else { Text("Create Family") }
+//                }
+//                .buttonStyle(.borderedProminent)
+//                .disabled(familyName.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
+//
+//                if let code = generatedCode {
+//                    VStack(spacing: 8) {
+//                        Text("Invite Code").font(.subheadline)
+//                        Text(code).font(.title).bold()
+//                        ShareLink("Share Code", item: "Join our family in the app with code: \(code)")
+//                    }
+//                    .padding(.top, 8)
+//
+//                    Button("Go to Home") { router.goMain() }
+//                        .buttonStyle(.borderedProminent)
+//                        .padding(.top, 8)
+//                }
+//            } else {
+//                TextField("Enter Invite Code", text: $inviteCode)
+//                    .textFieldStyle(.roundedBorder)
+//                    .textInputAutocapitalization(.characters)
+//
+//                Button {
+//                    Task { await joinFamily() }
+//                } label: {
+//                    if isBusy { ProgressView() } else { Text("Join Family") }
+//                }
+//                .buttonStyle(.borderedProminent)
+//                .disabled(inviteCode.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
+//            }
+//
+//            if let msg = message {
+//                Text(msg)
+//                    .font(.footnote)
+//                    .foregroundColor(msg.lowercased().contains("success") ? .green : .red)
+//                    .padding(.top, 4)
+//            }
+//
+//            Spacer()
+//        }
+//        .padding()
+//        .navigationTitle("Family Setup")
+//    }
+//
+//    // MARK: - Actions
+//
+//    private func createFamily() async {
+//        guard let uid = FirebaseAuthService.shared.currentUserId() else { return }
+//        
+//        isBusy = true; message = nil
+//        
+//        do {
+//            let result = try await FirestoreService.shared.createFamilyAndAttachOwner(familyName: familyName, ownerId: uid)
+//            generatedCode = result.inviteCode
+//            message = "Success! Your family was created."
+//        } catch {
+//            message = error.localizedDescription
+//        }
+//        
+//        isBusy = false
+//    }
+//
+//    private func joinFamily() async {
+//        guard let uid = FirebaseAuthService.shared.currentUserId() else { return }
+//        isBusy = true; message = nil
+//        do {
+//            _ = try await FirestoreService.shared.joinFamilyWithCode(inviteCode: inviteCode, uid: uid, role: .member)
+//            message = "Success! You’ve joined the family."
+//            // Short delay so the user sees the success, then proceed
+//            try? await Task.sleep(nanoseconds: 600_000_000)
+////            appState.isSignedIn = true
+//            router.goMain()
+//        } catch {
+//            message = error.localizedDescription
+//        }
+//        isBusy = false
+//    }
+//}
+//
+//#Preview {
+//    NavigationStack { PostSignUpView(role: .organizer) }
+//        .environmentObject(AppState())
+//}

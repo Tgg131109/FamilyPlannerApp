@@ -11,7 +11,7 @@ struct TodayCardView: View {
     let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
+//        Button(action: action) {
             VStack {
                 HStack {
                     // Icon with circular colored background
@@ -48,7 +48,7 @@ struct TodayCardView: View {
             .cornerRadius(12)
             .shadow(radius: 1) // Subtle shadow for depth
         }
-    }
+//    }
 }
 
 #Preview {
