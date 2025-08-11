@@ -11,6 +11,7 @@ import CoreLocation
 /// Wrapper that uses the shared GlobalLocationCoordinator and centralized throttle.
 struct WeatherCardWithLocationView: View {
     @EnvironmentObject var location: GlobalLocationCoordinator   // ← shared
+    @State private var weatherVM: WeatherCardViewModel?
     private let geocoder = ReverseGeocoder()
     
     let provider: WeatherProviding = {
@@ -18,7 +19,9 @@ struct WeatherCardWithLocationView: View {
         else { return MockWeatherService() }
     }()
     
-    @State private var weatherVM: WeatherCardViewModel?
+    let greeting: String
+    let displayName: String
+    let familyName: String
     
     var body: some View {
         Group {
@@ -55,7 +58,7 @@ struct WeatherCardWithLocationView: View {
                 
             case .authorizedWhenInUse, .authorizedAlways:
                 if let vm = weatherVM {
-                    WeatherCardView(viewModel: vm)
+                    WeatherCardView(vm: vm, greeting: greeting, displayName: displayName, familyName: familyName)
                 } else {
                     VStack(spacing: 8) {
                         ProgressView()
@@ -149,7 +152,7 @@ struct WeatherCardWithLocationView: View {
 
 // MARK: - Preview
 #Preview("Global Coordinator + Mock") {
-    WeatherCardWithLocationView()
+    WeatherCardWithLocationView(greeting: "Good afternoon,", displayName: "Toby", familyName: "Casa Gamble")
         .environmentObject(GlobalLocationCoordinator.preview())
         .padding()
         .background(Color(.systemBackground))

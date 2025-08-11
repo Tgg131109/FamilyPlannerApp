@@ -16,6 +16,7 @@ final class HomeViewModel: ObservableObject {
     @Published var greeting: String = ""
     @Published var displayName: String = ""
     @Published var familyName: String = ""
+    @Published private(set) var isOrganizer = false
     
     // Cards
     @Published var reminders: [ReminderItem] = []
@@ -30,8 +31,8 @@ final class HomeViewModel: ObservableObject {
     
     init() { }
     
-    func onAppear(session: AppSession?) {
-        todayString = Self.formattedToday() 
+    func onAppear(session: AppSession?) {        
+        todayString = Self.formattedToday()
         // Pull header values straight from your AppSession
         refreshHeader(session: session)
         
@@ -100,6 +101,8 @@ final class HomeViewModel: ObservableObject {
         if let user = session?.userDoc {
             let name = (user.displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             displayName = name.isEmpty ? (user.email ?? "") : name
+            print(displayName)
+            print(user.memberships)
         } else {
             displayName = ""
         }
@@ -120,11 +123,52 @@ final class HomeViewModel: ObservableObject {
     private static func makeGreeting(now: Date) -> String {
         let hour = Calendar.current.component(.hour, from: now)
         switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<22: return "Good evening"
-        default: return "Hello"
+        case 5..<12: return "Good morning,"
+        case 12..<17: return "Good afternoon,"
+        case 17..<22: return "Good evening,"
+        default: return "Hello,"
         }
+    }
+    
+    // MARK: - Toolbar helpers (no extra VM required)
+    
+    func isOrganizer(session: AppSession) -> Bool {
+        guard let me = session.userDoc?.id, let fam = session.familyDoc else { return false }
+         
+        return fam.organizerId.contains(me)
+    }
+    
+    func switchFamily(to id: String, session: AppSession) {
+        Task {
+            guard let uid = session.userDoc?.id else { return }
+            try? await Collections.users.document(uid).updateData([
+                "currentFamilyId": id,
+                "updatedAt": Timestamp(date: Date())
+            ])
+            
+            await session.performRefresh()  // simple wrapper that calls your refreshState(initialEvent: false)
+        }
+    }
+    
+    func presentNewFamily() {
+        // show create-family sheet, or inline create:
+        // Task { let newId = try await createFamily(); switchFamily(to: newId) }
+    }
+    
+    func presentManageMembers() {
+        // toggle @State to show a Manage Members sheet
+    }
+    
+    func presentInvite() {
+        // toggle @State to show Invite sheet
+    }
+    
+    func routeToProfile() {
+        // navigate to profile
+    }
+    
+    func routeToSettings() {
+        // navigate to settings
     }
 }
 

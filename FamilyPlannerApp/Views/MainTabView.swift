@@ -20,7 +20,6 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Home tab, passes tab binding to allow programmatic switching
             HomeView()
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(Tab.home)

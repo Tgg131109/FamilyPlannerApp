@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseAuth
 import FirebaseCore
+import FirebaseFirestore
 
 @MainActor
 final class AppSession: ObservableObject {
@@ -15,6 +16,11 @@ final class AppSession: ObservableObject {
     @Published private(set) var userDoc: UserModel?
     @Published private(set) var familyDoc: FamilyModel?
     @Published var errorMessage: String?
+    
+    // NEW — for switcher
+    @Published var userFamilies: [FamilyModel] = []               // all families from memberships
+    private var familyMap: [String: FamilyModel] = [:]
+    private var familyListeners: [String: ListenerRegistration] = [:]
     
     private let auth: AuthServicing
     private let users: UserRepositorying
@@ -40,6 +46,7 @@ final class AppSession: ObservableObject {
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, _ in
             Task { await self?.refreshState(initialEvent: true) }
         }
+        
         await refreshState(initialEvent: false)
     }
     
@@ -49,42 +56,83 @@ final class AppSession: ObservableObject {
                 // Load or bootstrap user profile
                 if let existing = try await users.get(uid: uid) {
                     self.userDoc = existing
-                    // backfill user in the background
                     await backfillUserIfNeeded(existing)
                 } else {
                     self.userDoc = nil
                 }
-
+                
+                if !didReceiveInitialAuthEvent && initialEvent { didReceiveInitialAuthEvent = true }
+                
                 route = computeRoute()
-
-                // If active, load & backfill family too
-                if case .active = route, let fid = userDoc?.familyId {
-                    let fSnap = try await Collections.families.document(fid).getDocument()
-                    if let fam = try? fSnap.data(as: FamilyModel.self) {
-                        self.familyDoc = fam
-                        await backfillFamilyIfNeeded(fam, fid: fid, ensureMember: uid)
+                
+                // If active, choose the scoped familyId (current or first membership)
+                if case .active = route, let user = userDoc {
+                    // NEW: get all membership family ids
+                    let membershipIds = Array(user.memberships.keys)
+                    
+                    // Populate families list (pick ONE of the two lines below)
+                    await fetchFamiliesForMembershipsOnce(membershipIds)
+                    // attachFamilyListeners(for: Set(membershipIds))   // <- if you want live updates instead
+                    
+                    let fid = userDoc?.currentFamilyId ?? defaultFamilyId(for: user)
+                    
+                    if let fid {
+                        let fSnap = try await Collections.families.document(fid).getDocument()
+                        
+                        if var fam = try? fSnap.data(as: FamilyModel.self) {
+                            fam.id = fSnap.documentID
+                            self.familyDoc = fam
+                            
+                            await backfillFamilyIfNeeded(fam, fid: fid, ensureMember: uid)
+                            
+                            // If currentFamilyId was nil, persist it
+                            if userDoc?.currentFamilyId == nil {
+                                try? await Collections.users.document(uid).updateData([
+                                    "currentFamilyId": fid,
+                                    "updatedAt": Timestamp(date: Date())
+                                ])
+                                
+                                self.userDoc?.currentFamilyId = fid
+                            }
+                        } else {
+                            self.familyDoc = nil
+                        }
                     } else {
-                        // If family decode fails, you could optionally drop to needsFamilySetup:
-                        // route = .needsFamilySetup(role: userDoc?.role ?? .organizer)
+                        self.familyDoc = nil
                     }
                 } else {
                     self.familyDoc = nil
+                    self.userFamilies = []
                 }
             } catch {
                 errorMessage = error.localizedDescription
             }
         } else {
-            userDoc = nil; familyDoc = nil
-            if didReceiveInitialAuthEvent || initialEvent { route = .signedOut } else { route = .splash }
+            userDoc = nil
+            familyDoc = nil
+            userFamilies = []
+            route = (didReceiveInitialAuthEvent || initialEvent) ? .signedOut : .splash
         }
     }
-
+    
+        private func defaultFamilyId(for user: UserModel) -> String? {
+            // Assuming user.memberships: [String: Membership] where Membership has joinedAt: Timestamp/Date
+            guard !user.memberships.isEmpty else { return nil }
+    
+            return user.memberships
+                .sorted(by: { lhs, rhs in
+                    lhs.value.joinedAt < rhs.value.joinedAt
+                })
+                .first?.key
+        }
     
     private func computeRoute() -> AppRoute {
-        guard let _ = auth.currentUID else { return .signedOut }
+        guard auth.currentUID != nil else { return .signedOut }
         guard let user = userDoc else { return .signedInNoProfile }
         guard user.status == .active else { return .pendingMembership }
-        if user.familyId == nil { return .needsFamilySetup(role: user.role) }
+        
+        if user.memberships.isEmpty { return .needsFamilySetup(role: user.role) }
+        
         return .active
     }
     
@@ -116,117 +164,182 @@ final class AppSession: ObservableObject {
         }
     }
     
-    func signOut() { do { try auth.signOut(); Task { await refreshState(initialEvent: false) } } catch { errorMessage = error.localizedDescription } }
+    func signOut() {
+        do {
+            try auth.signOut()
+            
+            Task {
+                await refreshState(initialEvent: false)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
     
     // MARK: - Family actions
     func createFamily(name: String) async {
         guard let uid = auth.currentUID else { return }
+        
         do {
             let fid = try await families.createFamilyTransaction(name: name, organizerUID: uid)
             var u = try await users.get(uid: uid)
+            
             u?.familyId = fid
-            if let u { try await users.upsert(u); self.userDoc = u }
+            
+            if let u {
+                try await users.upsert(u)
+                self.userDoc = u
+            }
+            
             route = computeRoute()
+            
             await refreshState(initialEvent: false)
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     func joinFamily(joinCode: String) async {
         guard let uid = auth.currentUID else { return }
+        
         do {
             let fid = try await families.joinFamilyByCodeTransaction(code: joinCode, uid: uid)
             var u = try await users.get(uid: uid)
+            
             u?.familyId = fid
-            if let u { try await users.upsert(u); self.userDoc = u }
+            
+            if let u {
+                try await users.upsert(u)
+                
+                self.userDoc = u
+            }
+            
             route = computeRoute()
+            
             await refreshState(initialEvent: false)
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     private func backfillUserIfNeeded(_ user: UserModel) async {
         guard let uid = user.id else { return }
         var patch: [String: Any] = [:]
-
-        // Non-optional now; only backfill arrays/derived fields
-        if user.providerIds.isEmpty {
-            patch["providerIds"] = []
+        
+        // Migrate legacy single-family field -> memberships/currentFamilyId
+        if user.memberships.isEmpty, let legacy = user.familyId, !legacy.isEmpty {
+            patch["memberships.\(legacy).role"] = user.role.rawValue
+            patch["memberships.\(legacy).joinedAt"] = Timestamp(date: Date())
+            patch["currentFamilyId"] = legacy
         }
-
-        // Always keep updatedAt fresh when we touch the doc
-        patch["updatedAt"] = Timestamp(date: Date())
-
+        
+        // Ensure we have a scoped household
+        if user.currentFamilyId == nil, !user.memberships.isEmpty {
+            if let first = user.memberships.keys.sorted().first {
+                patch["currentFamilyId"] = first
+            }
+        }
+        
+        // Keep providerIds present; always bump updatedAt if we patch
+        if user.providerIds.isEmpty { patch["providerIds"] = [] }
+        
         if !patch.isEmpty {
+            patch["updatedAt"] = Timestamp(date: Date())
             try? await Collections.users.document(uid).updateData(patch)
         }
     }
-
+    
     private func backfillFamilyIfNeeded(_ family: FamilyModel, fid: String, ensureMember uid: String?) async {
         var patch: [String: Any] = [:]
-
+        
         if family.joinCode.isEmpty {
             patch["joinCode"] = FamilyRepository.generateJoinCode()
         }
+        
         if family.members.isEmpty, let uid {
             patch["members.\(uid).role"] = "member"
             patch["members.\(uid).joinedAt"] = Timestamp(date: Date())
         }
-
-        // Always update updatedAt if we’re patching anything
+        
         if !patch.isEmpty {
             patch["updatedAt"] = Timestamp(date: Date())
             try? await Collections.families.document(fid).updateData(patch)
         }
     }
+    
+    private func fetchFamiliesForMembershipsOnce(_ ids: [String]) async {
+        userFamilies.removeAll()
+        familyMap.removeAll()
+        
+        guard !ids.isEmpty else { return }
+        
+        do {
+            for chunk in ids.chunked(into: 10) {
+                let snap = try await Collections.families
+                    .whereField(FieldPath.documentID(), in: chunk)
+                    .getDocuments()
+                
+                for doc in snap.documents {
+                    if var fam = try? doc.data(as: FamilyModel.self) {
+                        // Ensure id is present if your model doesn't embed it
+                        fam.id = doc.documentID
+                        familyMap[doc.documentID] = fam
+                    }
+                }
+            }
+            
+            userFamilies = familyMap.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+    
+    private func attachFamilyListeners(for ids: Set<String>) {
+        // remove stale
+        for (id, reg) in familyListeners where !ids.contains(id) {
+            reg.remove()
+            familyListeners[id] = nil
+            familyMap[id] = nil
+        }
+        
+        // add missing
+        for id in ids where familyListeners[id] == nil {
+            let reg = Collections.families.document(id).addSnapshotListener { [weak self] snap, err in
+                guard let self, let snap, snap.exists else {
+                    self?.familyMap[id] = nil
+                    self?.userFamilies = self?.familyMap.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } ?? []
+                    
+                    return
+                }
+                
+                if var fam = try? snap.data(as: FamilyModel.self) {
+                    fam.id = snap.documentID
+                    self.familyMap[id] = fam
+                    self.userFamilies = self.familyMap.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                    
+                    // keep familyDoc in sync if current
+                    if self.familyDoc?.id == id {
+                        self.familyDoc = fam
+                    }
+                }
+            }
+            
+            familyListeners[id] = reg
+        }
+    }
 }
 
-///// Holds the signed-in user + family, and reacts to auth state changes.
-//@MainActor
-//final class AppManager: ObservableObject {
-//    @Published var user: UserModel?
-//    @Published var family: FamilyModel?
-//    @Published var isLoading: Bool = true
-//
-//    private var handle: AuthStateDidChangeListenerHandle?
-//
-//    init() {
-//        startListening()
-//    }
-//
-//    deinit {
-//        if let h = handle { Auth.auth().removeStateDidChangeListener(h) }
-//    }
-//
-//    private func startListening() {
-//        handle = Auth.auth().addStateDidChangeListener { [weak self] _, authUser in
-//            Task { await self?.loadSession(for: authUser?.uid) }
-//        }
-//    }
-//
-//    /// Loads user + family into memory (or clears them if signed out)
-//    func loadSession(for uid: String?) async {
-//        isLoading = true
-//        defer { isLoading = false }
-//
-//        guard let uid = uid else {
-//            user = nil
-//            family = nil
-//            return
-//        }
-//
-//        // Fetch user doc
-//        let u = try? await FirestoreService.shared.fetchUser(uid: uid)
-//        user = u
-//
-//        // Fetch family if present
-//        if let famId = u?.familyId {
-//            family = try? await FirestoreService.shared.fetchFamily(familyId: famId)
-//        } else {
-//            family = nil
-//        }
-//    }
-//
-//    func signOut() async {
-//        do { try FirebaseAuthService.shared.signOut() } catch { /* handle/log if you want */ }
-//        await loadSession(for: nil)
-//    }
-//}
+extension AppSession {
+    func performRefresh() async {
+        await refreshState(initialEvent: false) // make refreshState internal or keep private and forward
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [self] }
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, count)])
+        }
+    }
+}

@@ -15,68 +15,62 @@ struct HeaderCardView: View {
     let familyName: String
     
     var body: some View {
-        //        CardContainer {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack{
-                Text(greeting)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                HStack(spacing: 8) {
-                    Image(systemName: "house")
-                    
-                    Text(familyName)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-//                .padding(.top, 2)
-            }
+        
+        HStack(spacing: 0) {
+            Text(greeting)
             
             Text(displayName.isEmpty ? "User" : displayName)
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
             
-//            HStack(spacing: 8) {
-//                Image(systemName: "house")
-//                
-//                Text(familyName)
-//                    .font(.subheadline)
-//                    .foregroundStyle(.secondary)
-//                    .lineLimit(1)
-//                    .minimumScaleFactor(0.8)
-//            }
-//            .padding(.top, 2)
+            Spacer()
+            
+            Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 4)
         .padding(.horizontal)
+        .font(.system(.caption, design: .rounded))
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 24)
+                .fill(.thinMaterial)
+        }
         
-        .background(LinearGradient(colors: [Color.blue.opacity(0.35), Color.indigo.opacity(0.35)],
-                                   startPoint: .topLeading,
-                                   endPoint: .bottomTrailing).ignoresSafeArea(.all, edges: .top))
-//        .background(
-//            // Subtle card background
-//            RoundedRectangle(cornerRadius: 16, style: .continuous)
-//                .fill(Color(.secondarySystemBackground))
-//        )
-//        .overlay(
-//            RoundedRectangle(cornerRadius: 16, style: .continuous)
-//                .strokeBorder(Color(.separator), lineWidth: 0.5)
-//        )
+        //        .background(
+        //            // Subtle card background
+        //            RoundedRectangle(cornerRadius: 16, style: .continuous)
+        //                .fill(Color(.secondarySystemBackground))
+        //        )
+        //        .overlay(
+        //            RoundedRectangle(cornerRadius: 16, style: .continuous)
+        //                .strokeBorder(Color(.separator), lineWidth: 0.5)
+        //        )
     }
 }
 
 struct HeaderCardView_Previews: PreviewProvider {
     static var previews: some View {
-        HeaderCardView(greeting: "Good afternoon", displayName: "Toby", familyName: "Casa Gamble")
-//            .padding()
-//            .background(Color(.systemBackground))
-//            .previewLayout(.sizeThatFits)
+        HeaderCardView(greeting: "Good afternoon,", displayName: "Toby", familyName: "Casa Gamble")
+            .padding()
+            .background(AnimatedMeshGradient())
+            .previewLayout(.sizeThatFits)
+    }
+}
+
+struct AnimatedGradientBackground: View {
+    @State private var animateGradient = false
+    
+    var body: some View {
+        LinearGradient(
+            gradient: Gradient(colors: animateGradient ? [.blue, .purple] : [.red, .orange]),
+            startPoint: animateGradient ? .topLeading : .bottomTrailing,
+            endPoint: animateGradient ? .bottomTrailing : .topLeading
+        )
+        .ignoresSafeArea()
+        .onAppear {
+            withAnimation(.easeInOut(duration: 10).repeatForever(autoreverses: true)) {
+                animateGradient.toggle()
+            }
+        }
     }
 }

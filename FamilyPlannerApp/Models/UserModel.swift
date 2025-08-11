@@ -9,11 +9,17 @@ import Foundation
 import FirebaseFirestore
 
 struct UserModel: Codable, Identifiable {
-    @DocumentID var id: String? // uid set by Firestore
+    @DocumentID var id: String?
     var displayName: String?
     var email: String?
-    var role: UserRole
+    
+    // LEGACY single-household field (kept for migration only)
     var familyId: String?
+    
+    var role: UserRole
+    var memberships: [String: MemberMeta]
+    var currentFamilyId: String?
+    
     var status: AccountStatus
     var providerIds: [String]
     var createdAt: Date
@@ -23,21 +29,24 @@ struct UserModel: Codable, Identifiable {
         self.id = uid
         self.email = email
         self.displayName = displayName
-        self.role = role
         self.familyId = nil
+        self.role = role
+        self.memberships = [:]
+        self.currentFamilyId = nil
         self.status = .active
         self.providerIds = []
         self.createdAt = Date()
         self.updatedAt = Date()
     }
     
-    // Tolerant decoding for existing docs
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
         self.email = try c.decodeIfPresent(String.self, forKey: .email)
+        self.familyId = try c.decodeIfPresent(String.self, forKey: .familyId) // legacy
         self.role = try c.decodeIfPresent(UserRole.self, forKey: .role) ?? .organizer
-        self.familyId = try c.decodeIfPresent(String.self, forKey: .familyId)
+        self.memberships = try c.decodeIfPresent([String: MemberMeta].self, forKey: .memberships) ?? [:]
+        self.currentFamilyId = try c.decodeIfPresent(String.self, forKey: .currentFamilyId)
         self.status = try c.decodeIfPresent(AccountStatus.self, forKey: .status) ?? .active
         self.providerIds = try c.decodeIfPresent([String].self, forKey: .providerIds) ?? []
         self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()

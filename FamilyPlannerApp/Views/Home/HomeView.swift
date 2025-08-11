@@ -9,9 +9,8 @@ import SwiftUI
 import CoreLocation
 
 struct HomeView: View {
-    @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var vm = HomeViewModel()
     @EnvironmentObject private var session: AppSession
-    //    @Binding var selectedTab: MainTabView.Tab
     
     var body: some View {
         NavigationStack {
@@ -20,27 +19,29 @@ struct HomeView: View {
                 //                    .font(.title2)
                 //                    .bold()
                 
-                HeaderCardView(
-                    greeting: viewModel.greeting,
-                    displayName: viewModel.displayName,
-                    familyName: viewModel.familyName
-                )
+//                HeaderCardView(
+//                    greeting: vm.greeting,
+//                    displayName: vm.displayName,
+//                    familyName: vm.familyName
+//                )
                 
                 ScrollView {
                     VStack(spacing : 16) {
+                        WeatherCardWithLocationView(greeting: vm.greeting, displayName: vm.displayName, familyName: vm.familyName)
+                        
                         RemindersCardView()
                         
                         TodayCardView() {
                             //                    selectedTab = .calendar
                         }
                         
-                        if #available(iOS 16.0, *) {
-                            WeatherCardWithLocationView()
-                        } else {
-                            WeatherCardWithLocationView()
-                        }
+//                        if #available(iOS 16.0, *) {
+//                            WeatherCardWithLocationView()
+//                        } else {
+//                            WeatherCardWithLocationView()
+//                        }
                         
-//                        Spacer()
+                        //                        Spacer()
                         
                         
                     }
@@ -67,18 +68,35 @@ struct HomeView: View {
                 }
                 .frame(height: 200)
             }
-            .navigationTitle("Home")            
-            .toolbarVisibility(.hidden, for: .automatic)
+//            .navigationTitle("Home")
+//            .toolbarVisibility(.hidden, for: .automatic)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(content: {
+                HomeToolbar(
+                    families: session.userFamilies.map { FamilyListItem(id: $0.id ?? "", name: $0.name) },
+                    currentFamilyId: session.familyDoc?.id,
+                    canInvite: vm.isOrganizer(session: session),
+                    onSelectFamily: { id in vm.switchFamily(to: id, session: session) },
+                    onNewFamily: { vm.presentNewFamily() },
+                    onManageMembers: { vm.presentManageMembers() },
+                    onInvite: { vm.presentInvite() },
+                    onProfile: { vm.routeToProfile() },
+                    onSettings: { vm.routeToSettings() }
+                )
+            })
         }
         .onAppear {
-            viewModel.onAppear(session: session)
+            print("Home appeared")
+            vm.onAppear(session: session)
         }
         // Keep the header in sync with AppSession changes
         .onReceive(session.$userDoc) { _ in
-            viewModel.refreshHeader(session: session)
+            print("User doc changed")
+            vm.refreshHeader(session: session)
         }
         .onReceive(session.$familyDoc) { _ in
-            viewModel.refreshHeader(session: session)
+            print("Family doc changed")
+            vm.refreshHeader(session: session)
         }
     }
 }
