@@ -14,6 +14,11 @@ struct MemberMeta: Codable {
     var joinedAt: Date
 }
 
+struct PendingMeta: Codable {
+    var email: String
+    var requestedAt: Date
+}
+
 struct MemberLocation: Identifiable, Codable {
     @DocumentID var id: String?        // uid
     var uid: String

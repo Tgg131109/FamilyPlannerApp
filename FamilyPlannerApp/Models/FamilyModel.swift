@@ -37,3 +37,21 @@ struct FamilyModel: Codable, Identifiable {
         self.updatedAt = updatedAt ?? Date()
     }
 }
+
+extension FamilyModel {
+    static var demoFamily: FamilyModel {
+        FamilyModel(
+            id: "fam_demo_123",
+            name: "Gamble Family",
+            organizerId: "user-1",
+            joinCode: "ABC123",
+            members: [
+                "user-1": MemberMeta(role: .organizer, joinedAt: Date()),
+                "user-2": MemberMeta(role: .member,    joinedAt: Date().addingTimeInterval(-86_400)),
+                "user-3": MemberMeta(role: .member,    joinedAt: Date().addingTimeInterval(-172_800))
+            ],
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+}

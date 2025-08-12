@@ -12,6 +12,9 @@ import FirebaseFirestore
 // ViewModel for the Home screen
 @MainActor
 final class HomeViewModel: ObservableObject {
+    private let session: AppSession
+    private let repo: FamilyRepositorying
+    
     // Header
     @Published var greeting: String = ""
     @Published var displayName: String = ""
@@ -25,13 +28,19 @@ final class HomeViewModel: ObservableObject {
     
     @Published var isLoading: Bool = true
     
+    @Published var showManageMembers = false
+    @Published var showInviteSheet   = false
+    @Published var lastError: String?
     //    private var remindersListener: ListenerRegistration?
     
     //    deinit { remindersListener?.remove() }
     
-    init() { }
+    init(session: AppSession, repo: FamilyRepositorying) {
+        self.session = session
+        self.repo = repo
+    }
     
-    func onAppear(session: AppSession?) {        
+    func onAppear(session: AppSession?) {
         todayString = Self.formattedToday()
         // Pull header values straight from your AppSession
         refreshHeader(session: session)
@@ -130,11 +139,11 @@ final class HomeViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Toolbar helpers (no extra VM required)
+    // MARK: - Toolbar helpers
     
     func isOrganizer(session: AppSession) -> Bool {
         guard let me = session.userDoc?.id, let fam = session.familyDoc else { return false }
-         
+        
         return fam.organizerId.contains(me)
     }
     
@@ -158,10 +167,14 @@ final class HomeViewModel: ObservableObject {
     
     func presentManageMembers() {
         // toggle @State to show a Manage Members sheet
+        print("manage members")
+        showManageMembers = true
     }
     
     func presentInvite() {
         // toggle @State to show Invite sheet
+        print("invite member")
+        showInviteSheet = true
     }
     
     func routeToProfile() {
@@ -170,6 +183,40 @@ final class HomeViewModel: ObservableObject {
     
     func routeToSettings() {
         // navigate to settings
+    }
+    
+    func dismissSheets() {
+        showManageMembers = false
+        showInviteSheet = false
+    }
+    
+    func removeMember(_ uid: String) {
+        Task {
+            guard let fid = session.familyDoc?.id,
+                  let me  = session.userDoc?.id else { return }
+            do {
+                try await repo.removeMemberTransaction(
+                    familyId: fid, memberUID: uid, actingOrganizerUID: me
+                )
+                await session.performRefresh()
+            } catch {
+                await MainActor.run { self.lastError = error.localizedDescription }
+            }
+        }
+    }
+    
+    func leaveFamily() {
+        Task {
+            guard let fid = session.familyDoc?.id,
+                  let me  = session.userDoc?.id else { return }
+            do {
+                try await repo.leaveFamilyTransaction(familyId: fid, uid: me)
+                await session.performRefresh()
+                await MainActor.run { self.showManageMembers = false }
+            } catch {
+                await MainActor.run { self.lastError = error.localizedDescription }
+            }
+        }
     }
 }
 

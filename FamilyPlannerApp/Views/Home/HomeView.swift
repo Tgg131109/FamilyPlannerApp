@@ -11,12 +11,16 @@ import Combine
 
 struct HomeView: View {
     @EnvironmentObject private var session: AppSession
-    @StateObject private var vm = HomeViewModel()
+    @StateObject private var vm = HomeViewModel
     
     @State private var pendingFamilyId: String? = nil
     @State private var cancellable: AnyCancellable?
     
     @Binding var selectedTab: AppTab
+    
+    init(session: AppSession, repo: FamilyRepositorying) {
+            _vm = StateObject(wrappedValue: HomeViewModel(session: session, repo: repo))
+        }
     
     var body: some View {
         NavigationStack {
@@ -34,16 +38,6 @@ struct HomeView: View {
                         LocationCardView() {
                             selectedTab = .location
                         }
-                        
-                        //                        if #available(iOS 16.0, *) {
-                        //                            WeatherCardWithLocationView()
-                        //                        } else {
-                        //                            WeatherCardWithLocationView()
-                        //                        }
-                        
-                        //                        Spacer()
-                        
-                        
                     }
                     .padding(.top)
                 }
@@ -85,6 +79,35 @@ struct HomeView: View {
                     onSettings: { vm.routeToSettings() }
                 )
             })
+        }
+        .sheet(isPresented: $vm.showManageMembers) {
+            if let fam = session.familyDoc, let me = session.userDoc?.id {
+                ManageMembersSheet(
+                    family: fam,
+                    currentUserId: me,
+                    onRemove: { uid in vm.removeMember(uid) },
+                    onLeave: { vm.leaveFamily() }
+                )
+            } else {
+                Text("No household selected.")
+                    .presentationDetents([.medium])
+            }
+        }
+        .sheet(isPresented: $vm.showInviteSheet) {
+            // Your invite/join-code UI
+            InviteSheet(
+                familyName: session.familyDoc?.name ?? "",
+                joinCode: session.familyDoc?.joinCode ?? "",
+                onCopy: { UIPasteboard.general.string = session.familyDoc?.joinCode ?? "" },
+                onShare: {
+                    // e.g., ShareLink or custom ActivityView
+                }
+            )
+        }
+        .alert("Error", isPresented: .constant(vm.lastError != nil)) {
+            Button("OK") { vm.lastError = nil }
+        } message: {
+            Text(vm.lastError ?? "")
         }
         .onAppear {
             print("Home appeared")
