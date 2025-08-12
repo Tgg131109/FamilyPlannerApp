@@ -16,17 +16,22 @@ final class AppSession: ObservableObject {
     @Published private(set) var userDoc: UserModel?
     @Published private(set) var familyDoc: FamilyModel?
     @Published var errorMessage: String?
-    
-    // NEW — for switcher
-    @Published var userFamilies: [FamilyModel] = []               // all families from memberships
-    private var familyMap: [String: FamilyModel] = [:]
-    private var familyListeners: [String: ListenerRegistration] = [:]
+    @Published var userFamilies: [FamilyModel] = []         // Household switcher
+    @Published var memberLocations: [MemberLocation] = []   // Household locations
     
     private let auth: AuthServicing
     private let users: UserRepositorying
     private let families: FamilyRepositorying
     private var authHandle: AuthStateDidChangeListenerHandle?
     private var didReceiveInitialAuthEvent = false
+    
+    // Household switcher
+    private var familyMap: [String: FamilyModel] = [:]
+    private var familyListeners: [String: ListenerRegistration] = [:]
+    
+    // Household locations
+    private var memberLocationsListener: ListenerRegistration?
+    private var lastLocationWriteAt: Date?
     
     init(
         auth: AuthServicing? = nil,
@@ -38,7 +43,11 @@ final class AppSession: ObservableObject {
         self.families = families ?? FamilyRepository()
     }
     
-    deinit { if let h = authHandle { Auth.auth().removeStateDidChangeListener(h) } }
+    deinit {
+        if let h = authHandle {
+            Auth.auth().removeStateDidChangeListener(h)
+        }
+    }
     
     func start() async {
         print("start")
@@ -133,6 +142,12 @@ final class AppSession: ObservableObject {
             familyDoc = nil
             userFamilies = []
             route = (didReceiveInitialAuthEvent || initialEvent) ? .signedOut : .splash
+        }
+        
+        if let id = self.familyDoc?.id {
+            self.subscribeToMemberLocations(for: id)
+        } else {
+            self.stopMemberLocations()
         }
     }
     
@@ -347,6 +362,93 @@ final class AppSession: ObservableObject {
             }
             
             familyListeners[id] = reg
+        }
+    }
+    
+    // MARK: - Family location
+    func subscribeToMemberLocations(for familyId: String) {
+        // Clean up any prior family listener
+        memberLocationsListener?.remove()
+        memberLocationsListener = nil
+        memberLocations.removeAll()
+        
+        memberLocationsListener = Collections.families
+            .document(familyId)
+            .memberLocations
+            .whereField("isSharing", isEqualTo: true)
+            .addSnapshotListener { [weak self] snap, err in
+                guard let self else { return }
+                
+                if let err = err {
+                    self.errorMessage = err.localizedDescription
+                    return
+                }
+                
+                self.memberLocations = snap?.documents.compactMap { doc in
+                    try? doc.data(as: MemberLocation.self)
+                } ?? []
+            }
+    }
+    
+    func stopMemberLocations() {
+        memberLocationsListener?.remove()
+        memberLocationsListener = nil
+        memberLocations.removeAll()
+    }
+    
+    func upsertMyLocationIfNeeded(using coordinator: GlobalLocationCoordinator) async {
+        guard let uid = auth.currentUID,
+              let fid = userDoc?.currentFamilyId ?? familyDoc?.id,
+              let myCoord = coordinator.lastCoordinate
+        else { return }
+        
+        // Optional: honor the global throttle heuristic
+        guard coordinator.shouldFetchNow(for: myCoord) else { return }
+        
+        // Extra: hard time throttle to avoid chatty writes
+        let now = Date()
+        if let last = lastLocationWriteAt, now.timeIntervalSince(last) < 20 { return }
+        lastLocationWriteAt = now
+        
+        let ref = Collections.families
+            .document(fid)
+            .memberLocations
+            .document(uid)
+        
+        let displayName = userDoc?.displayName ?? "Member"
+        let photo = userDoc?.photoURL ?? Auth.auth().currentUser?.photoURL?.absoluteString
+        
+        var data: [String: Any] = [
+            "uid": uid,
+            "displayName": displayName,
+            "isSharing": true,
+            "coord": GeoPoint(latitude: myCoord.latitude, longitude: myCoord.longitude),
+            "lastUpdated": FieldValue.serverTimestamp()
+        ]
+        
+        if let p = photo {
+            data["photoURL"] = p
+        }
+        
+        do {
+            try await ref.setData(data, merge: true)
+            coordinator.recordFetch(for: myCoord)
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+    
+    func stopSharingMyLocation() async {
+        guard let uid = auth.currentUID,
+              let fid = userDoc?.currentFamilyId ?? familyDoc?.id else { return }
+        do {
+            try await Collections.families
+                .document(fid)
+                .memberLocations
+                .document(uid)
+                .setData(["isSharing": false], merge: true)
+        } catch {
+            self.errorMessage = error.localizedDescription
         }
     }
 }

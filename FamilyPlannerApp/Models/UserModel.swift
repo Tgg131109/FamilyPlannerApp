@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 struct UserModel: Codable, Identifiable {
     @DocumentID var id: String?
@@ -25,6 +26,8 @@ struct UserModel: Codable, Identifiable {
     var createdAt: Date
     var updatedAt: Date
     
+    var photoURL: String?
+    
     init(uid: String, email: String?, displayName: String?, role: UserRole) {
         self.id = uid
         self.email = email
@@ -37,6 +40,7 @@ struct UserModel: Codable, Identifiable {
         self.providerIds = []
         self.createdAt = Date()
         self.updatedAt = Date()
+        self.photoURL = Auth.auth().currentUser?.photoURL?.absoluteString // optional convenience
     }
     
     init(from decoder: Decoder) throws {
@@ -51,6 +55,7 @@ struct UserModel: Codable, Identifiable {
         self.providerIds = try c.decodeIfPresent([String].self, forKey: .providerIds) ?? []
         self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         self.updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        self.photoURL = try c.decodeIfPresent(String.self, forKey: .photoURL) // may be nil / absent
     }
 }
 

@@ -11,3 +11,7 @@ enum Collections {
     static let users = Firestore.firestore().collection("users")
     static let families = Firestore.firestore().collection("families")
 }
+
+extension DocumentReference {
+    var memberLocations: CollectionReference { collection("memberLocations") }
+}

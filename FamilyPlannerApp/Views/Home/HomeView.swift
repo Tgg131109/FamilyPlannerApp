@@ -10,10 +10,13 @@ import CoreLocation
 import Combine
 
 struct HomeView: View {
-    @StateObject private var vm = HomeViewModel()
     @EnvironmentObject private var session: AppSession
+    @StateObject private var vm = HomeViewModel()
+    
     @State private var pendingFamilyId: String? = nil
     @State private var cancellable: AnyCancellable?
+    
+    @Binding var selectedTab: AppTab
     
     var body: some View {
         NavigationStack {
@@ -25,7 +28,11 @@ struct HomeView: View {
                         RemindersCardView()
                         
                         TodayCardView() {
-                            //                    selectedTab = .calendar
+                            selectedTab = .calendar
+                        }
+                        
+                        LocationCardView() {
+                            selectedTab = .location
                         }
                         
                         //                        if #available(iOS 16.0, *) {
@@ -97,12 +104,18 @@ struct HomeView: View {
             if let newValue, newValue == pendingFamilyId {
                 pendingFamilyId = nil
             }
+            
+            if let fid = newValue {
+                session.subscribeToMemberLocations(for: fid)
+            } else {
+                session.stopMemberLocations()
+            }
         }
     }
 }
 
 #Preview {
-    HomeView()
+    HomeView(selectedTab: .constant(.home))
         .environmentObject(AppSession())
         .environmentObject(GlobalLocationCoordinator.preview())
 }

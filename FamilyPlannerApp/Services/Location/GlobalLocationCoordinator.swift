@@ -198,3 +198,10 @@ extension GlobalLocationCoordinator {
         return c
     }
 }
+
+extension GlobalLocationCoordinator {
+    var lastCoordinateKey: String {
+        guard let c = lastCoordinate else { return "nil" }
+        return roundedKey(for: c, decimals: 4) // ~11m granularity, avoids jitter
+    }
+}

@@ -35,16 +35,6 @@ struct HeaderCardView: View {
             RoundedRectangle(cornerRadius: 24)
                 .fill(.thinMaterial)
         }
-        
-        //        .background(
-        //            // Subtle card background
-        //            RoundedRectangle(cornerRadius: 16, style: .continuous)
-        //                .fill(Color(.secondarySystemBackground))
-        //        )
-        //        .overlay(
-        //            RoundedRectangle(cornerRadius: 16, style: .continuous)
-        //                .strokeBorder(Color(.separator), lineWidth: 0.5)
-        //        )
     }
 }
 

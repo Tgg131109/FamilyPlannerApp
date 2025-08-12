@@ -33,8 +33,8 @@ struct WeatherCardView: View {
                     familyName: familyName
                 )
                 
+                // Weather/temperature row
                 HStack(alignment: .center, spacing: 12) {
-                    // Leading weather glyph
                     Image(systemName: vm.summary?.symbolName ?? "cloud.fill")
                         .font(.system(size: 28, weight: .semibold))
                         .foregroundStyle(.primary)
@@ -44,46 +44,47 @@ struct WeatherCardView: View {
                             .font(.headline)
                         Text(vm.summary?.condition ?? "Loading…")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
                     }
                     
-                    Divider().frame(height: 40)
+                    Spacer()
                     
                     Text(vm.tempString(vm.summary?.temperature ?? 0))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
+//
+//                    // Manual refresh
+//                    Button {
+//                        Task { await vm.load() }
+//                    } label: {
+//                        Image(systemName: "arrow.clockwise")
+//                            .font(.system(size: 16, weight: .semibold))
+//                    }
+//                    .buttonStyle(.plain)
+//                    .accessibilityLabel("Refresh weather")
+                }
+                
+                // Conditions row
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    // Conditions
+                    HStack() {
+                        Label(vm.percentString(vm.summary?.precipitationChance ?? 0.0), systemImage: "cloud.rain")
+                        
+                        Divider().frame(height: 20)
+                        
+                        Label(vm.windString(vm.summary?.windMph ?? 0.0), systemImage: "wind")
+                    }
+                    .font(.subheadline)
                     
                     Spacer()
                     
-                    // Manual refresh
-                    Button {
-                        Task { await vm.load() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 16, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Refresh weather")
-                }
-                
-                // Temperature row
-                HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    HStack(spacing: 8) {
+                    // Temperature hi/lo
+                    HStack() {
                         Label(vm.tempString(vm.summary?.high ?? 0), systemImage: "arrow.up")
+                        
+                        Divider().frame(height: 20)
+                        
                         Label(vm.tempString(vm.summary?.low ?? 0), systemImage: "arrow.down")
                     }
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    // Details row
-                    HStack(spacing: 16) {
-                        Label(vm.percentString(vm.summary?.precipitationChance ?? 0.0), systemImage: "cloud.rain")
-                        Label(vm.windString(vm.summary?.windMph ?? 0.0), systemImage: "wind")
-                        //                        Spacer()
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
                 }
                 
                 // Error banner (if any)
@@ -101,6 +102,7 @@ struct WeatherCardView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: 120)
+        .shadow(radius: 1)
     }
 }
 
@@ -126,7 +128,7 @@ struct AnimatedMeshGradient: View {
                 [0.0, 1.0], [1.0, appear2 ? 2.0 : 1.0], [1.0, 1.0]
             ], colors: [
                 appear2 ? .blue.opacity(0.35) : .mint, appear2 ? .indigo.opacity(0.35): .cyan, .orange,
-                appear ? .blue.opacity(0.35) : .pink.opacity(0.35), appear ? .cyan : .purple, appear ? .indigo : .purple,
+                appear ? .blue.opacity(0.35) : .teal.opacity(0.35), appear ? .cyan : .purple, appear ? .indigo : .purple,
                 appear ? .teal : .cyan, appear ? .mint : .blue, appear2 ? .indigo.opacity(0.50) : .blue
             ]
         )
