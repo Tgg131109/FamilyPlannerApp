@@ -7,24 +7,17 @@
 
 import SwiftUI
 import CoreLocation
+import Combine
 
 struct HomeView: View {
     @StateObject private var vm = HomeViewModel()
     @EnvironmentObject private var session: AppSession
+    @State private var pendingFamilyId: String? = nil
+    @State private var cancellable: AnyCancellable?
     
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
-                //                Text("\(viewModel.greeting), \($viewModel.username)!")
-                //                    .font(.title2)
-                //                    .bold()
-                
-//                HeaderCardView(
-//                    greeting: vm.greeting,
-//                    displayName: vm.displayName,
-//                    familyName: vm.familyName
-//                )
-                
                 ScrollView {
                     VStack(spacing : 16) {
                         WeatherCardWithLocationView(greeting: vm.greeting, displayName: vm.displayName, familyName: vm.familyName)
@@ -35,11 +28,11 @@ struct HomeView: View {
                             //                    selectedTab = .calendar
                         }
                         
-//                        if #available(iOS 16.0, *) {
-//                            WeatherCardWithLocationView()
-//                        } else {
-//                            WeatherCardWithLocationView()
-//                        }
+                        //                        if #available(iOS 16.0, *) {
+                        //                            WeatherCardWithLocationView()
+                        //                        } else {
+                        //                            WeatherCardWithLocationView()
+                        //                        }
                         
                         //                        Spacer()
                         
@@ -68,15 +61,16 @@ struct HomeView: View {
                 }
                 .frame(height: 200)
             }
-//            .navigationTitle("Home")
-//            .toolbarVisibility(.hidden, for: .automatic)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(content: {
                 HomeToolbar(
                     families: session.userFamilies.map { FamilyListItem(id: $0.id ?? "", name: $0.name) },
                     currentFamilyId: session.familyDoc?.id,
                     canInvite: vm.isOrganizer(session: session),
-                    onSelectFamily: { id in vm.switchFamily(to: id, session: session) },
+                    pendingFamilyId: pendingFamilyId,
+                    onSelectFamily: { id in
+                        withAnimation(.snappy) { pendingFamilyId = id }
+                        vm.switchFamily(to: id, session: session) },
                     onNewFamily: { vm.presentNewFamily() },
                     onManageMembers: { vm.presentManageMembers() },
                     onInvite: { vm.presentInvite() },
@@ -87,16 +81,22 @@ struct HomeView: View {
         }
         .onAppear {
             print("Home appeared")
-            vm.onAppear(session: session)
+            // one combined stream, deduped, triggers header refresh
+            cancellable = Publishers.CombineLatest(session.$userDoc, session.$familyDoc)
+                .removeDuplicates { lhs, rhs in
+                    lhs.0?.id == rhs.0?.id && lhs.1?.id == rhs.1?.id
+                }
+                .sink { _, _ in
+                    vm.refreshHeader(session: session)
+                }
         }
-        // Keep the header in sync with AppSession changes
-        .onReceive(session.$userDoc) { _ in
-            print("User doc changed")
-            vm.refreshHeader(session: session)
+        .onDisappear {
+            cancellable?.cancel()
         }
-        .onReceive(session.$familyDoc) { _ in
-            print("Family doc changed")
-            vm.refreshHeader(session: session)
+        .onChange(of: session.familyDoc?.id) { oldValue, newValue in
+            if let newValue, newValue == pendingFamilyId {
+                pendingFamilyId = nil
+            }
         }
     }
 }
@@ -106,95 +106,3 @@ struct HomeView: View {
         .environmentObject(AppSession())
         .environmentObject(GlobalLocationCoordinator.preview())
 }
-
-
-
-//// The main Home screen for the Family Planner app
-//struct HomeView: View {
-//    @StateObject private var viewModel = HomeViewModel() // MVVM pattern
-//    @Binding var selectedTab: MainTabView.Tab // Binding to control tab selection
-//    @EnvironmentObject var session: AppManager
-//
-//    var body: some View {
-//        NavigationStack {
-//            VStack(alignment: .leading, spacing: 16) {
-//                ScrollView {
-//                    HomeHeaderView()
-//                }
-//                .scrollContentBackground(.hidden)
-//                .refreshable {
-//                    await session.loadSession(for: FirebaseAuthService.shared.currentUserId())
-//                }
-//
-//                // Personalized greeting
-//                Text("\(viewModel.greeting), \(viewModel.username)!")
-//                    .font(.title2)
-//                    .bold()
-//
-//                RemindersCardView()
-//
-//                TodayCardView() {
-//                    selectedTab = .calendar
-//                }
-//                // Scrollable stack of navigation cards
-//                ScrollView {
-//                    VStack(spacing: 12) {
-//                        if #available(iOS 16.0, *) {
-//                            WeatherCardWithLocationView()
-//                        } else {
-//                            WeatherCardWithLocationView()
-//                        }
-//                        // Each HomeCardView opens a specific module
-//                        //                        NavigationLink(destination: CalendarScreen()) {
-//                        //                            HomeCardView(title: "Calendar", systemImage: "calendar", color: .blue)
-//                        //                        }
-//
-//                        //                        HomeCardView(title: "Calendar", systemImage: "calendar", color: .blue) {
-//                        //                            selectedTab = .calendar
-//                        //                        }
-//
-//                        //                        HomeCardView(title: "Recipes & Meal Plan", systemImage: "fork.knife", color: .orange) {
-//                        //                            selectedTab = .recipes
-//                        //                        }
-//                        //
-//                        //                        HomeCardView(title: "Shopping List", systemImage: "cart.fill", color: .green) {
-//                        //                            selectedTab = .recipes // optional: route deeper inside recipes later
-//                        //                        }
-//                        //
-//                        //                        HomeCardView(title: "Family Chat", systemImage: "bubble.left.and.bubble.right.fill", color: .purple) {
-//                        //                            selectedTab = .chat
-//                        //                        }
-//                        //
-//                        //                        HomeCardView(title: "Location Map", systemImage: "map.fill", color: .teal) {
-//                        //                            selectedTab = .location
-//                        //                        }
-//                    }
-//                }
-//
-//                Spacer() // Pushes content upward
-//            }
-//            .padding(.horizontal)
-//            .navigationTitle("Home")
-//            .toolbarVisibility(.hidden, for: .automatic)
-//            //            .background(Color.orange.edgesIgnoringSafeArea(.all))
-//        }
-//    }
-//}
-//
-//#Preview {
-//    // Build a quick preview session
-//    let session = AppManager()
-//    session.user = UserModel(
-//        id: "u1", uid: "u1", fullName: "Taylor Morgan",
-//        email: "taylor@example.com", role: .member,
-//        familyId: "f1", createdAt: .now, updatedAt: .now
-//    )
-//    session.family = FamilyModel(id: "f1", name: "Morgan Fam", ownerId: "u2", inviteCode: "DEF456", createdAt: .now)
-//    session.isLoading = false
-//
-//    return NavigationStack {
-//        HomeView(selectedTab: .constant(.home))
-//            .environmentObject(GlobalLocationCoordinator.preview())
-//            .environmentObject(session)
-//    }
-//}

@@ -13,6 +13,7 @@ struct HomeToolbar: ToolbarContent {
     let families: [FamilyListItem]
     let currentFamilyId: String?
     let canInvite: Bool
+    let pendingFamilyId: String?
     
     // Actions
     let onSelectFamily: (String) -> Void
@@ -59,11 +60,14 @@ struct HomeToolbar: ToolbarContent {
                     Label("Manage Members", systemImage: "person.3")
                 }
             } label: {
+                // Prefer pending id while switching
+                let activeId = pendingFamilyId ?? currentFamilyId
+                let activeName = families.first(where: { $0.id == activeId })?.name
+                
                 HStack(spacing: 2) {
-                    Text(families.first(where: { $0.id == currentFamilyId })?.name ?? "Select Household")
+                    Text(activeName ?? "Select Household")
                         .font(.system(size: 30, weight: .bold, design: .rounded))
                         .tint(.primary)
-                    
                     Image(systemName: "chevron.down")
                         .tint(.secondary)
                         .font(.caption)
@@ -104,6 +108,7 @@ struct FamilyListItem: Identifiable, Equatable {
 struct ToolbarView: View {
     @StateObject private var vm = HomeViewModel()
     @EnvironmentObject private var session: AppSession
+    @State private var pendingFamilyId: String? = nil
     
     var body: some View {
         NavigationStack {
@@ -114,7 +119,10 @@ struct ToolbarView: View {
                         families: session.userFamilies.map { FamilyListItem(id: $0.id ?? "", name: $0.name) },
                         currentFamilyId: session.familyDoc?.id,
                         canInvite: vm.isOrganizer(session: session),
-                        onSelectFamily: { id in vm.switchFamily(to: id, session: session) },
+                        pendingFamilyId: pendingFamilyId,
+                        onSelectFamily: { id in
+                            withAnimation(.snappy) { pendingFamilyId = id }
+                            vm.switchFamily(to: id, session: session) },
                         onNewFamily: { vm.presentNewFamily() },
                         onManageMembers: { vm.presentManageMembers() },
                         onInvite: { vm.presentInvite() },

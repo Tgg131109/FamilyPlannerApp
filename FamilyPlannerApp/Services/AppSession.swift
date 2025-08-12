@@ -41,6 +41,7 @@ final class AppSession: ObservableObject {
     deinit { if let h = authHandle { Auth.auth().removeStateDidChangeListener(h) } }
     
     func start() async {
+        print("start")
         // Show splash until we receive the first auth event
         route = .splash
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, _ in
@@ -48,6 +49,26 @@ final class AppSession: ObservableObject {
         }
         
         await refreshState(initialEvent: false)
+    }
+    
+    private var refreshTask: Task<Void, Never>?
+    
+    func performRefresh() async {
+        await refreshState(initialEvent: false) // make refreshState internal or keep private and forward
+        // Coalesce overlapping refreshes
+        if let t = refreshTask {
+            await t.value
+            return
+        }
+        
+        refreshTask = Task { [weak self] in
+            guard let self else { return }
+            await self.refreshState(initialEvent: false)
+        }
+        
+        await refreshTask?.value
+        
+        refreshTask = nil
     }
     
     private func refreshState(initialEvent: Bool) async {
@@ -115,16 +136,16 @@ final class AppSession: ObservableObject {
         }
     }
     
-        private func defaultFamilyId(for user: UserModel) -> String? {
-            // Assuming user.memberships: [String: Membership] where Membership has joinedAt: Timestamp/Date
-            guard !user.memberships.isEmpty else { return nil }
-    
-            return user.memberships
-                .sorted(by: { lhs, rhs in
-                    lhs.value.joinedAt < rhs.value.joinedAt
-                })
-                .first?.key
-        }
+    private func defaultFamilyId(for user: UserModel) -> String? {
+        // Assuming user.memberships: [String: Membership] where Membership has joinedAt: Timestamp/Date
+        guard !user.memberships.isEmpty else { return nil }
+        
+        return user.memberships
+            .sorted(by: { lhs, rhs in
+                lhs.value.joinedAt < rhs.value.joinedAt
+            })
+            .first?.key
+    }
     
     private func computeRoute() -> AppRoute {
         guard auth.currentUID != nil else { return .signedOut }
@@ -268,7 +289,8 @@ final class AppSession: ObservableObject {
     }
     
     private func fetchFamiliesForMembershipsOnce(_ ids: [String]) async {
-        userFamilies.removeAll()
+        print("fetching families")
+        //        userFamilies.removeAll()
         familyMap.removeAll()
         
         guard !ids.isEmpty else { return }
@@ -326,12 +348,6 @@ final class AppSession: ObservableObject {
             
             familyListeners[id] = reg
         }
-    }
-}
-
-extension AppSession {
-    func performRefresh() async {
-        await refreshState(initialEvent: false) // make refreshState internal or keep private and forward
     }
 }
 

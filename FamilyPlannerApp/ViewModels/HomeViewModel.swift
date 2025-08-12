@@ -141,6 +141,7 @@ final class HomeViewModel: ObservableObject {
     func switchFamily(to id: String, session: AppSession) {
         Task {
             guard let uid = session.userDoc?.id else { return }
+            
             try? await Collections.users.document(uid).updateData([
                 "currentFamilyId": id,
                 "updatedAt": Timestamp(date: Date())
