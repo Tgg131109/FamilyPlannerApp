@@ -11,9 +11,11 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab: AppTab = .home    
 
+    let repo: FamilyRepositorying
+    
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(selectedTab: $selectedTab)
+            HomeView(selectedTab: $selectedTab, repo: repo)
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(AppTab.home)
 
@@ -53,7 +55,7 @@ struct RecipesView: View { var body: some View { Text("Recipes").navigationTitle
 struct SettingsView: View { var body: some View { Text("Settings").navigationTitle("Settings") } }
 
 #Preview {
-    MainTabView()
+    MainTabView(repo: MockFamilyRepo())
         .environmentObject(AppSession())
         .environmentObject(GlobalLocationCoordinator.preview())
 }

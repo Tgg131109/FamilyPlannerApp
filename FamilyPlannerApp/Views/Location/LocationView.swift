@@ -64,6 +64,7 @@ struct LocationView: View {
 
 #Preview {
     let session = AppSession()
+    
     session.memberLocations = [
         MemberLocation(
             id: "1",

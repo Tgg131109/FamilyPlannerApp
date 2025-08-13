@@ -453,6 +453,19 @@ final class AppSession: ObservableObject {
     }
 }
 
+#if DEBUG
+@MainActor
+extension AppSession {
+    /// Preview hook: seed session with fake data
+    func loadPreviewState(user: UserModel?, family: FamilyModel?, families: [FamilyModel]) {
+        self.userDoc = user
+        self.familyDoc = family
+        self.userFamilies = families   // rename to your actual array prop if different
+        self.route = .active
+    }
+}
+#endif
+
 private extension Array {
     func chunked(into size: Int) -> [[Element]] {
         guard size > 0 else { return [self] }

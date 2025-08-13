@@ -59,6 +59,20 @@ struct UserModel: Codable, Identifiable {
     }
 }
 
+extension UserModel {
+    static func demo(uid: String, name: String, email: String, currentFamilyId: String) -> UserModel {
+        var u = UserModel(uid: uid, email: email, displayName: name, role: .organizer)
+        
+        u.currentFamilyId = currentFamilyId
+        u.memberships = [
+            "fam_demo_123": MemberMeta(role: .organizer, joinedAt: Date().addingTimeInterval(-172_800)),
+            "fam_demo_456": MemberMeta(role: .member, joinedAt: Date().addingTimeInterval(-86_400))
+        ]
+        
+        return u
+    }
+}
+
 enum UserRole: String, Codable, CaseIterable, Identifiable {
     case organizer
     case member

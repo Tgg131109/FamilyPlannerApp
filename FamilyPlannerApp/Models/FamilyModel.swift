@@ -54,4 +54,8 @@ extension FamilyModel {
             updatedAt: Date()
         )
     }
+    
+    static func demo(id: String, name: String, organizerId: String = "User-1", members: [String: MemberMeta]? = nil) -> FamilyModel {
+        return FamilyModel.demoFamily
+    }
 }

@@ -277,3 +277,21 @@ extension FamilyRepository {
         })
     }
 }
+
+// MARK: - Mock Repo (minimal stubs)
+
+final class MockFamilyRepo: FamilyRepositorying {
+    func familyByJoinCode(_ code: String) async throws -> (id: String, family: FamilyModel)? { nil }
+    func createFamilyTransaction(name: String, organizerUID: String) async throws -> String { "new_fam_id" }
+    func joinFamilyByCodeTransaction(code: String, uid: String) async throws -> String { "joined_fam_id" }
+
+    func addMemberTransaction(familyId fid: String, memberUID: String, addedBy organizerUID: String, role: UserRole) async throws {}
+    func removeMemberTransaction(familyId fid: String, memberUID: String, actingOrganizerUID: String) async throws {}
+    func leaveFamilyTransaction(familyId fid: String, uid: String) async throws {}
+
+    func requestToJoinTransaction(familyId fid: String, uid: String, email: String) async throws {}
+    func approveJoinRequestTransaction(familyId fid: String, uid: String, approvedBy organizerUID: String) async throws {}
+    func rejectJoinRequestTransaction(familyId fid: String, uid: String) async throws {}
+
+    func rotateJoinCodeTransaction(fid: String) async throws {}
+}

@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ManageMembersSheet: View {
+    @EnvironmentObject private var session: AppSession
+    
     let family: FamilyModel
     let currentUserId: String
     let onRemove: (String) -> Void
@@ -15,7 +17,27 @@ struct ManageMembersSheet: View {
     
     var body: some View {
         NavigationStack {
+//            List {
+//                
+//                
+//                Section("Account") {
+//                    Button("Sign Out") {
+//                        session.signOut()
+//                    }
+//                }
+//            }
+//            .frame(height: 200)
             List {
+                if let family = session.familyDoc,
+                   let fid = family.id {
+                    Section("Family") {
+                        LabeledContent("Name", value: family.name)
+                        LabeledContent("Family ID", value: fid)
+                        LabeledContent("Join Code", value: family.joinCode)
+                        LabeledContent("Members", value: String(family.members.count))
+                    }
+                }
+                
                 Section("Members") {
                     ForEach(memberRows, id: \.id) { m in
                         HStack {
@@ -35,10 +57,19 @@ struct ManageMembersSheet: View {
                 Section {
                     if canLeave {
                         Button(role: .destructive) { onLeave() } label: { Text("Leave Household") }
+                    } else {
+                        InviteSheet(
+                            familyName: session.familyDoc?.name ?? "",
+                            joinCode: session.familyDoc?.joinCode ?? "",
+                            onCopy: { UIPasteboard.general.string = session.familyDoc?.joinCode ?? "" },
+                            onShare: {
+                                // e.g., ShareLink or custom ActivityView
+                            }
+                        )
                     }
                 }
             }
-            .navigationTitle("Manage Members")
+            .navigationTitle("Household")
         }
     }
     
@@ -75,6 +106,7 @@ struct ManageMembersSheet: View {
             print("Preview leave tapped")
         }
     )
+    .environmentObject(AppSession())
 }
 
 #Preview("ManageMembers — Member view") {
@@ -88,4 +120,5 @@ struct ManageMembersSheet: View {
             print("Preview leave tapped")
         }
     )
+    .environmentObject(AppSession())
 }

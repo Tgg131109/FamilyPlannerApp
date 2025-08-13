@@ -11,16 +11,14 @@ import Combine
 
 struct HomeView: View {
     @EnvironmentObject private var session: AppSession
-    @StateObject private var vm = HomeViewModel
+    @StateObject private var vm = HomeViewModel()
     
     @State private var pendingFamilyId: String? = nil
     @State private var cancellable: AnyCancellable?
     
     @Binding var selectedTab: AppTab
     
-    init(session: AppSession, repo: FamilyRepositorying) {
-            _vm = StateObject(wrappedValue: HomeViewModel(session: session, repo: repo))
-        }
+    let repo: FamilyRepositorying
     
     var body: some View {
         NavigationStack {
@@ -42,25 +40,6 @@ struct HomeView: View {
                     .padding(.top)
                 }
                 .padding(.horizontal)
-                
-                List {
-                    if let family = session.familyDoc,
-                       let fid = family.id {
-                        Section("Family") {
-                            LabeledContent("Name", value: family.name)
-                            LabeledContent("Family ID", value: fid)
-                            LabeledContent("Join Code", value: family.joinCode)
-                            LabeledContent("Members", value: String(family.members.count))
-                        }
-                    }
-                    
-                    Section("Account") {
-                        Button("Sign Out") {
-                            session.signOut()
-                        }
-                    }
-                }
-                .frame(height: 200)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(content: {
@@ -72,7 +51,7 @@ struct HomeView: View {
                     onSelectFamily: { id in
                         withAnimation(.snappy) { pendingFamilyId = id }
                         vm.switchFamily(to: id, session: session) },
-                    onNewFamily: { vm.presentNewFamily() },
+                    onNewFamily: { vm.presentNewFamily(session: session) },
                     onManageMembers: { vm.presentManageMembers() },
                     onInvite: { vm.presentInvite() },
                     onProfile: { vm.routeToProfile() },
@@ -80,13 +59,26 @@ struct HomeView: View {
                 )
             })
         }
-        .sheet(isPresented: $vm.showManageMembers) {
+        .sheet(isPresented: $vm.showNewFamilySheet) {
+            NewFamilySheet(
+                name: $vm.newFamilyName,
+                isCreating: vm.isCreatingFamily,
+                onCancel: { vm.showNewFamilySheet = false },
+                onCreate: { vm.createFamily(session: session, repo: repo) }
+            )
+        }
+        .alert("Error", isPresented: .constant(vm.createError != nil)) {
+            Button("OK") { vm.createError = nil }
+        } message: {
+            Text(vm.createError ?? "")
+        }
+        .sheet(isPresented: $vm.showMembersSheet) {
             if let fam = session.familyDoc, let me = session.userDoc?.id {
                 ManageMembersSheet(
                     family: fam,
                     currentUserId: me,
-                    onRemove: { uid in vm.removeMember(uid) },
-                    onLeave: { vm.leaveFamily() }
+                    onRemove: { uid in vm.removeMember(uid, session: session, repo: repo) },
+                    onLeave: { vm.leaveFamily(session: session, repo: repo) }
                 )
             } else {
                 Text("No household selected.")
@@ -138,7 +130,49 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView(selectedTab: .constant(.home))
+    
+    HomeView(selectedTab: .constant(.home), repo: MockFamilyRepo())
         .environmentObject(AppSession())
         .environmentObject(GlobalLocationCoordinator.preview())
 }
+
+// MARK: - Previews
+
+//#Preview("HomeView — Organizer") {
+//    let session = AppSession()
+//
+//    let fam1 = FamilyModel.demo(id: "fam_demo_123", name: "Gamble Family", organizerId: "user-1")
+//    let fam2 = FamilyModel.demo(
+//        id: "fam_other_456", name: "Co‑Parent Team", organizerId: "user-3",
+//        members: [
+//            "user-3": MemberMeta(role: .organizer, joinedAt: Date().addingTimeInterval(-200_000)),
+//            "user-1": MemberMeta(role: .member,    joinedAt: Date().addingTimeInterval(-150_000))
+//        ]
+//    )
+//
+//    let user = UserModel.demo(uid: "user-1", name: "Sam", email: "sam@example.com", currentFamilyId: fam1.id ?? "")
+//
+//    session.loadPreviewState(user: user, family: fam1, families: [fam1, fam2])
+//
+//    HomeView(selectedTab: .constant(.home), repo: MockFamilyRepo())
+//        .environmentObject(session)
+//}
+//
+//#Preview("HomeView — Member") {
+//    let session = AppSession()
+//
+//    let fam1 = FamilyModel.demo(
+//        id: "fam_demo_123", name: "Gamble Family", organizerId: "user-99",
+//        members: [
+//            "user-99": MemberMeta(role: .organizer, joinedAt: Date()),
+//            "user-2":  MemberMeta(role: .member,    joinedAt: Date().addingTimeInterval(-80_000))
+//        ]
+//    )
+//
+//    let user = UserModel.demo(uid: "user-2", name: "Alex", email: "alex@example.com", currentFamilyId: fam1.id ?? "")
+//
+//    session.loadPreviewState(user: user, family: fam1, families: [fam1])
+//
+//    HomeView(selectedTab: .constant(.home), repo: MockFamilyRepo())
+//        .environmentObject(session)
+//}

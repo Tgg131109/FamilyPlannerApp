@@ -18,7 +18,7 @@ struct RootView: View {
             case .signedInNoProfile: MinimalProfileView()
             case .needsFamilySetup(let role): FamilyGateView(role: role)
             case .pendingMembership: PendingView()
-            case .active: MainTabView()
+            case .active: MainTabView(repo: FamilyRepository())
             }
         }
         .overlay(alignment: .top) {

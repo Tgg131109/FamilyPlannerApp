@@ -27,6 +27,7 @@ struct InviteSheet: View {
             }
         }
         .padding()
+        .frame(maxWidth: .infinity)
     }
 }
 

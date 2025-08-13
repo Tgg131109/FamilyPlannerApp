@@ -12,9 +12,6 @@ import FirebaseFirestore
 // ViewModel for the Home screen
 @MainActor
 final class HomeViewModel: ObservableObject {
-    private let session: AppSession
-    private let repo: FamilyRepositorying
-    
     // Header
     @Published var greeting: String = ""
     @Published var displayName: String = ""
@@ -28,17 +25,24 @@ final class HomeViewModel: ObservableObject {
     
     @Published var isLoading: Bool = true
     
-    @Published var showManageMembers = false
+    @Published var showNewFamilySheet = false
+    @Published var showMembersSheet = false
     @Published var showInviteSheet   = false
+    
+    @Published var newFamilyName: String = ""
+    @Published var isCreatingFamily = false
+    @Published var createError: String?
+    
     @Published var lastError: String?
+    
     //    private var remindersListener: ListenerRegistration?
     
     //    deinit { remindersListener?.remove() }
     
-    init(session: AppSession, repo: FamilyRepositorying) {
-        self.session = session
-        self.repo = repo
-    }
+    //    init(session: AppSession, repo: FamilyRepositorying) {
+    //        self.session = session
+    //        self.repo = repo
+    //    }
     
     func onAppear(session: AppSession?) {
         todayString = Self.formattedToday()
@@ -160,15 +164,23 @@ final class HomeViewModel: ObservableObject {
         }
     }
     
-    func presentNewFamily() {
+    func presentNewFamily(session: AppSession) {
         // show create-family sheet, or inline create:
         // Task { let newId = try await createFamily(); switchFamily(to: newId) }
+        print("new household")
+        // seed a friendly default, tweak as you like
+        let fallback = (session.userDoc?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { name in
+            name.isEmpty ? nil : "\(name)’s Household"
+        } ?? "New Household"
+        
+        newFamilyName = fallback
+        showNewFamilySheet = true
     }
     
     func presentManageMembers() {
         // toggle @State to show a Manage Members sheet
         print("manage members")
-        showManageMembers = true
+        showMembersSheet = true
     }
     
     func presentInvite() {
@@ -179,25 +191,55 @@ final class HomeViewModel: ObservableObject {
     
     func routeToProfile() {
         // navigate to profile
+        print("go to profile")
     }
     
     func routeToSettings() {
         // navigate to settings
+        print("go to settings")
     }
     
     func dismissSheets() {
-        showManageMembers = false
+        showNewFamilySheet = false
+        showMembersSheet = false
         showInviteSheet = false
     }
     
-    func removeMember(_ uid: String) {
+    func createFamily(session: AppSession, repo: FamilyRepositorying) {
+        guard let me = session.userDoc?.id else { return }
+        let name = newFamilyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            createError = "Please enter a household name."
+            return
+        }
+        
+        isCreatingFamily = true
+        
+        Task {
+            do {
+                let fid = try await repo.createFamilyTransaction(name: name, organizerUID: me)
+                // The transaction already sets currentFamilyId = fid on the user doc.
+                // Pull fresh app state so UI switches immediately.
+                await session.performRefresh()
+                await MainActor.run {
+                    self.isCreatingFamily = false
+                    self.showNewFamilySheet = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.isCreatingFamily = false
+                    self.createError = error.localizedDescription
+                }
+            }
+        }
+    }
+    
+    func removeMember(_ uid: String, session: AppSession, repo: FamilyRepositorying) {
         Task {
             guard let fid = session.familyDoc?.id,
                   let me  = session.userDoc?.id else { return }
             do {
-                try await repo.removeMemberTransaction(
-                    familyId: fid, memberUID: uid, actingOrganizerUID: me
-                )
+                try await repo.removeMemberTransaction(familyId: fid, memberUID: uid, actingOrganizerUID: me)
                 await session.performRefresh()
             } catch {
                 await MainActor.run { self.lastError = error.localizedDescription }
@@ -205,14 +247,14 @@ final class HomeViewModel: ObservableObject {
         }
     }
     
-    func leaveFamily() {
+    func leaveFamily(session: AppSession, repo: FamilyRepositorying) {
         Task {
             guard let fid = session.familyDoc?.id,
                   let me  = session.userDoc?.id else { return }
             do {
                 try await repo.leaveFamilyTransaction(familyId: fid, uid: me)
                 await session.performRefresh()
-                await MainActor.run { self.showManageMembers = false }
+                await MainActor.run { self.showMembersSheet = false }
             } catch {
                 await MainActor.run { self.lastError = error.localizedDescription }
             }

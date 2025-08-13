@@ -46,18 +46,18 @@ struct HomeToolbar: ToolbarContent {
                     }
                 }
                 
-                Divider() // Optional separator
+                Divider()
+                
+                Button {
+                    onManageMembers()
+                } label: {
+                    Label("Household Details", systemImage: "person.3")
+                }
                 
                 Button {
                     onNewFamily()
                 } label: {
                     Label("New Household", systemImage: "plus.circle")
-                }
-                
-                Button {
-                    onManageMembers()
-                } label: {
-                    Label("Manage Members", systemImage: "person.3")
                 }
             } label: {
                 // Prefer pending id while switching
@@ -77,22 +77,22 @@ struct HomeToolbar: ToolbarContent {
         
         ToolbarItem(placement: .topBarTrailing) {
             HStack {
-                if canInvite {
-                    Button {
-                        onInvite()
-                    } label: {
-                        Image(systemName: "person.crop.circle.badge.plus").imageScale(.large)
-                    }
-                    .accessibilityLabel("Invite Members")
-                }
+//                if canInvite {
+//                    Button {
+//                        onInvite()
+//                    } label: {
+//                        Image(systemName: "person.crop.circle.badge.plus").imageScale(.large)
+//                    }
+//                    .accessibilityLabel("Invite Members")
+//                }
                 
                 Button("Profile", systemImage: "person.crop.circle") {
-                    print("go to profile")
+                    onProfile()
                 }
                 .labelStyle(.iconOnly)
                 
                 Button("Settings", systemImage: "gear") {
-                    print("go to settings")
+                    onSettings()
                 }
                 .labelStyle(.iconOnly)
             }
@@ -123,7 +123,7 @@ struct ToolbarView: View {
                         onSelectFamily: { id in
                             withAnimation(.snappy) { pendingFamilyId = id }
                             vm.switchFamily(to: id, session: session) },
-                        onNewFamily: { vm.presentNewFamily() },
+                        onNewFamily: { vm.presentNewFamily(session: session) },
                         onManageMembers: { vm.presentManageMembers() },
                         onInvite: { vm.presentInvite() },
                         onProfile: { vm.routeToProfile() },
