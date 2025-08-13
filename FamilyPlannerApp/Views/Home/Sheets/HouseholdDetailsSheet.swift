@@ -1,5 +1,5 @@
 //
-//  ManageMembersSheet.swift
+//  HouseholdDetailsSheet.swift
 //  FamilyPlannerApp
 //
 //  Created by Toby Gamble on 8/12/25.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ManageMembersSheet: View {
+struct HouseholdDetailsSheet: View {
     @EnvironmentObject private var session: AppSession
     
     let family: FamilyModel
@@ -95,8 +95,8 @@ struct ManageMembersSheet: View {
     }
 }
 
-#Preview("ManageMembers — Organizer view") {
-    ManageMembersSheet(
+#Preview("HouseholdDetails — Organizer view") {
+    HouseholdDetailsSheet(
         family: .demoFamily,
         currentUserId: "user-1",  // organizer
         onRemove: { memberId in
@@ -109,8 +109,8 @@ struct ManageMembersSheet: View {
     .environmentObject(AppSession())
 }
 
-#Preview("ManageMembers — Member view") {
-    ManageMembersSheet(
+#Preview("HouseholdDetails — Member view") {
+    HouseholdDetailsSheet(
         family: .demoFamily,
         currentUserId: "user-2", // regular member
         onRemove: { memberId in

@@ -86,6 +86,7 @@ final class AppSession: ObservableObject {
                 // Load or bootstrap user profile
                 if let existing = try await users.get(uid: uid) {
                     self.userDoc = existing
+                    
                     await backfillUserIfNeeded(existing)
                 } else {
                     self.userDoc = nil
@@ -101,7 +102,7 @@ final class AppSession: ObservableObject {
                     let membershipIds = Array(user.memberships.keys)
                     
                     // Populate families list (pick ONE of the two lines below)
-                    await fetchFamiliesForMembershipsOnce(membershipIds)
+//                    await fetchFamiliesForMembershipsOnce(membershipIds)
                     // attachFamilyListeners(for: Set(membershipIds))   // <- if you want live updates instead
                     
                     let fid = userDoc?.currentFamilyId ?? defaultFamilyId(for: user)
@@ -145,8 +146,10 @@ final class AppSession: ObservableObject {
         }
         
         if let id = self.familyDoc?.id {
+            print("Subscribing to member locations for \(id)")
             self.subscribeToMemberLocations(for: id)
         } else {
+            print(">>> Unsubscribing from member locations")
             self.stopMemberLocations()
         }
     }

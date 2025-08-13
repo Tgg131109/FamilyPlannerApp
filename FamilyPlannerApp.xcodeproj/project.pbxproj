@@ -14,6 +14,7 @@
 		3A8364E42E4299C500656B34 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 3A8364E32E4299C500656B34 /* FirebaseFirestore */; };
 		3A9A6A952E49008700144ADE /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3A9A6A942E49008700144ADE /* GoogleSignIn */; };
 		3A9A6A972E49008700144ADE /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 3A9A6A962E49008700144ADE /* GoogleSignInSwift */; };
+		3A9A6BE42E4D09A800144ADE /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 3A9A6BE32E4D09A800144ADE /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 				3A8364E02E4299C500656B34 /* FirebaseAnalytics in Frameworks */,
 				3A8364E42E4299C500656B34 /* FirebaseFirestore in Frameworks */,
 				3A9A6A972E49008700144ADE /* GoogleSignInSwift in Frameworks */,
+				3A9A6BE42E4D09A800144ADE /* FirebaseStorage in Frameworks */,
 				3A8364E22E4299C500656B34 /* FirebaseAuth in Frameworks */,
 				3A8364DE2E4299C500656B34 /* FirebaseAI in Frameworks */,
 			);
@@ -149,6 +151,7 @@
 				3A8364E32E4299C500656B34 /* FirebaseFirestore */,
 				3A9A6A942E49008700144ADE /* GoogleSignIn */,
 				3A9A6A962E49008700144ADE /* GoogleSignInSwift */,
+				3A9A6BE32E4D09A800144ADE /* FirebaseStorage */,
 			);
 			productName = FamilyPlannerApp;
 			productReference = 3A8363292E40E59D00656B34 /* FamilyPlannerApp.app */;
@@ -652,6 +655,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3A9A6A932E49008700144ADE /* XCRemoteSwiftPackageReference "GoogleSignIn-ios" */;
 			productName = GoogleSignInSwift;
+		};
+		3A9A6BE32E4D09A800144ADE /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3A8364DC2E4299C500656B34 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

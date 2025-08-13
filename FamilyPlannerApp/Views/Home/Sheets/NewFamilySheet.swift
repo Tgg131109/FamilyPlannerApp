@@ -9,6 +9,7 @@ import SwiftUI
 
 struct NewFamilySheet: View {
     @Binding var name: String
+    
     let isCreating: Bool
     let onCancel: () -> Void
     let onCreate: () -> Void

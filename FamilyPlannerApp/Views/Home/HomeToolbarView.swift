@@ -9,16 +9,17 @@ import SwiftUI
 import FirebaseFirestore
 
 struct HomeToolbar: ToolbarContent {
-    // Data
     let families: [FamilyListItem]
     let currentFamilyId: String?
-    let canInvite: Bool
+    //    let canInvite: Bool
     let pendingFamilyId: String?
+    let userPhotoURL: String?
+    let userDisplayName: String?
     
     // Actions
     let onSelectFamily: (String) -> Void
     let onNewFamily: () -> Void
-    let onManageMembers: () -> Void
+    let onHouseholdDetails: () -> Void
     let onInvite: () -> Void
     let onProfile: () -> Void
     let onSettings: () -> Void
@@ -49,7 +50,7 @@ struct HomeToolbar: ToolbarContent {
                 Divider()
                 
                 Button {
-                    onManageMembers()
+                    onHouseholdDetails()
                 } label: {
                     Label("Household Details", systemImage: "person.3")
                 }
@@ -77,19 +78,25 @@ struct HomeToolbar: ToolbarContent {
         
         ToolbarItem(placement: .topBarTrailing) {
             HStack {
-//                if canInvite {
-//                    Button {
-//                        onInvite()
-//                    } label: {
-//                        Image(systemName: "person.crop.circle.badge.plus").imageScale(.large)
-//                    }
-//                    .accessibilityLabel("Invite Members")
-//                }
-                
-                Button("Profile", systemImage: "person.crop.circle") {
+                //                if canInvite {
+                //                    Button {
+                //                        onInvite()
+                //                    } label: {
+                //                        Image(systemName: "person.crop.circle.badge.plus").imageScale(.large)
+                //                    }
+                //                    .accessibilityLabel("Invite Members")
+                //                }
+                Button {
                     onProfile()
+                } label: {
+                    ToolbarAvatar(urlString: userPhotoURL, displayName: userDisplayName, size: 28)
                 }
-                .labelStyle(.iconOnly)
+                .accessibilityLabel(userDisplayName ?? "Profile")
+                
+                //                Button("Profile", systemImage: "person.crop.circle") {
+                //                    onProfile()
+                //                }
+                //                .labelStyle(.iconOnly)
                 
                 Button("Settings", systemImage: "gear") {
                     onSettings()
@@ -97,6 +104,58 @@ struct HomeToolbar: ToolbarContent {
                 .labelStyle(.iconOnly)
             }
         }
+    }
+}
+
+struct ToolbarAvatar: View {
+    let urlString: String?
+    let displayName: String?
+    let size: CGFloat
+    
+    private var initials: String {
+        let parts = (displayName ?? "")
+            .split(separator: " ")
+            .prefix(2)
+        let chars = parts.compactMap { $0.first }
+        let s = String(chars).uppercased()
+        
+        return s.isEmpty ? "?" : s
+    }
+    
+    private var initialsBubble: some View {
+        Text(initials)
+            .font(.system(size: max(12, size * 0.45), weight: .semibold, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(Circle().fill(.tint)) // uses app accent/tint
+    }
+    
+    var body: some View {
+        Group {
+            if let s = urlString, let url = URL(string: s) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    case .empty:
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    case .failure(_):
+                        initialsBubble
+                    @unknown default:
+                        initialsBubble
+                    }
+                }
+            } else {
+                initialsBubble
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay(Circle().strokeBorder(.quaternary, lineWidth: 1))
+        .contentShape(Circle())
     }
 }
 
@@ -118,13 +177,15 @@ struct ToolbarView: View {
                     HomeToolbar(
                         families: session.userFamilies.map { FamilyListItem(id: $0.id ?? "", name: $0.name) },
                         currentFamilyId: session.familyDoc?.id,
-                        canInvite: vm.isOrganizer(session: session),
+                        //                        canInvite: vm.isOrganizer(session: session),
                         pendingFamilyId: pendingFamilyId,
+                        userPhotoURL: session.userDoc?.photoURL,
+                        userDisplayName: session.userDoc?.displayName,
                         onSelectFamily: { id in
                             withAnimation(.snappy) { pendingFamilyId = id }
                             vm.switchFamily(to: id, session: session) },
                         onNewFamily: { vm.presentNewFamily(session: session) },
-                        onManageMembers: { vm.presentManageMembers() },
+                        onHouseholdDetails: { vm.presentHouseholdDetails() },
                         onInvite: { vm.presentInvite() },
                         onProfile: { vm.routeToProfile() },
                         onSettings: { vm.routeToSettings() }

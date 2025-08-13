@@ -26,8 +26,9 @@ final class HomeViewModel: ObservableObject {
     @Published var isLoading: Bool = true
     
     @Published var showNewFamilySheet = false
-    @Published var showMembersSheet = false
+    @Published var showHouseholdDetails = false
     @Published var showInviteSheet   = false
+    @Published var showProfileSheet = false
     
     @Published var newFamilyName: String = ""
     @Published var isCreatingFamily = false
@@ -177,10 +178,10 @@ final class HomeViewModel: ObservableObject {
         showNewFamilySheet = true
     }
     
-    func presentManageMembers() {
+    func presentHouseholdDetails() {
         // toggle @State to show a Manage Members sheet
         print("manage members")
-        showMembersSheet = true
+        showHouseholdDetails = true
     }
     
     func presentInvite() {
@@ -192,6 +193,7 @@ final class HomeViewModel: ObservableObject {
     func routeToProfile() {
         // navigate to profile
         print("go to profile")
+        showProfileSheet = true
     }
     
     func routeToSettings() {
@@ -201,7 +203,7 @@ final class HomeViewModel: ObservableObject {
     
     func dismissSheets() {
         showNewFamilySheet = false
-        showMembersSheet = false
+        showHouseholdDetails = false
         showInviteSheet = false
     }
     
@@ -254,7 +256,7 @@ final class HomeViewModel: ObservableObject {
             do {
                 try await repo.leaveFamilyTransaction(familyId: fid, uid: me)
                 await session.performRefresh()
-                await MainActor.run { self.showMembersSheet = false }
+                await MainActor.run { self.showHouseholdDetails = false }
             } catch {
                 await MainActor.run { self.lastError = error.localizedDescription }
             }

@@ -46,35 +46,24 @@ struct HomeView: View {
                 HomeToolbar(
                     families: session.userFamilies.map { FamilyListItem(id: $0.id ?? "", name: $0.name) },
                     currentFamilyId: session.familyDoc?.id,
-                    canInvite: vm.isOrganizer(session: session),
+                    //                    canInvite: vm.isOrganizer(session: session),
                     pendingFamilyId: pendingFamilyId,
+                    userPhotoURL: session.userDoc?.photoURL,
+                    userDisplayName: session.userDoc?.displayName,
                     onSelectFamily: { id in
                         withAnimation(.snappy) { pendingFamilyId = id }
                         vm.switchFamily(to: id, session: session) },
                     onNewFamily: { vm.presentNewFamily(session: session) },
-                    onManageMembers: { vm.presentManageMembers() },
+                    onHouseholdDetails: { vm.presentHouseholdDetails() },
                     onInvite: { vm.presentInvite() },
                     onProfile: { vm.routeToProfile() },
                     onSettings: { vm.routeToSettings() }
                 )
             })
         }
-        .sheet(isPresented: $vm.showNewFamilySheet) {
-            NewFamilySheet(
-                name: $vm.newFamilyName,
-                isCreating: vm.isCreatingFamily,
-                onCancel: { vm.showNewFamilySheet = false },
-                onCreate: { vm.createFamily(session: session, repo: repo) }
-            )
-        }
-        .alert("Error", isPresented: .constant(vm.createError != nil)) {
-            Button("OK") { vm.createError = nil }
-        } message: {
-            Text(vm.createError ?? "")
-        }
-        .sheet(isPresented: $vm.showMembersSheet) {
+        .sheet(isPresented: $vm.showHouseholdDetails) {
             if let fam = session.familyDoc, let me = session.userDoc?.id {
-                ManageMembersSheet(
+                HouseholdDetailsSheet(
                     family: fam,
                     currentUserId: me,
                     onRemove: { uid in vm.removeMember(uid, session: session, repo: repo) },
@@ -85,17 +74,34 @@ struct HomeView: View {
                     .presentationDetents([.medium])
             }
         }
-        .sheet(isPresented: $vm.showInviteSheet) {
-            // Your invite/join-code UI
-            InviteSheet(
-                familyName: session.familyDoc?.name ?? "",
-                joinCode: session.familyDoc?.joinCode ?? "",
-                onCopy: { UIPasteboard.general.string = session.familyDoc?.joinCode ?? "" },
-                onShare: {
-                    // e.g., ShareLink or custom ActivityView
-                }
+        .sheet(isPresented: $vm.showNewFamilySheet) {
+            NewFamilySheet(
+                name: $vm.newFamilyName,
+                isCreating: vm.isCreatingFamily,
+                onCancel: { vm.showNewFamilySheet = false },
+                onCreate: { vm.createFamily(session: session, repo: repo) }
             )
         }
+        .sheet(isPresented: $vm.showProfileSheet) {
+            ProfileSheet()
+        }
+        .alert("Error", isPresented: .constant(vm.createError != nil)) {
+            Button("OK") { vm.createError = nil }
+        } message: {
+            Text(vm.createError ?? "")
+        }
+        
+        //        .sheet(isPresented: $vm.showInviteSheet) {
+        //            // Your invite/join-code UI
+        //            InviteSheet(
+        //                familyName: session.familyDoc?.name ?? "",
+        //                joinCode: session.familyDoc?.joinCode ?? "",
+        //                onCopy: { UIPasteboard.general.string = session.familyDoc?.joinCode ?? "" },
+        //                onShare: {
+        //                    // e.g., ShareLink or custom ActivityView
+        //                }
+        //            )
+        //        }
         .alert("Error", isPresented: .constant(vm.lastError != nil)) {
             Button("OK") { vm.lastError = nil }
         } message: {
