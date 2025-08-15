@@ -30,5 +30,5 @@ struct RootView: View {
 #Preview {
     RootView()
         .environmentObject(AppSession())
-        .environmentObject(GlobalLocationCoordinator.preview())
+//        .environmentObject(GlobalLocationCoordinator.preview())
 }

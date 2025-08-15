@@ -18,48 +18,77 @@ struct HomeView: View {
     
     @Binding var selectedTab: AppTab
     
+    @Namespace private var mapHeroNS
+    @State private var showMapHero = false
+    @State private var heroAnimating = false
+    
     let repo: FamilyRepositorying
     
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 0) {
-                ScrollView {
-                    VStack(spacing : 16) {
-                        WeatherCardWithLocationView(greeting: vm.greeting, displayName: vm.displayName, familyName: vm.familyName)
-                        
-                        RemindersCardView()
-                        
-                        TodayCardView() {
-                            selectedTab = .calendar
+            ZStack {
+                VStack(alignment: .leading, spacing: 0) {
+                    ScrollView {
+                        VStack(spacing : 16) {
+                            WeatherCardWithLocationView(greeting: vm.greeting, displayName: vm.displayName, familyName: vm.familyName)
+                            
+                            RemindersCardView()
+                            
+                            TodayCardView() {
+                                selectedTab = .calendar
+                            }
+                            
+                            LocationCardView(ns: mapHeroNS, isSource: !showMapHero) {
+                                //                                heroToLocation()
+                                withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) {
+//                                    showMapHero = true
+                                    selectedTab = .location
+                                }
+                                //                                // 2) After the hero expands, switch tabs
+                                //                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
+                                //                                    selectedTab = .location
+                                //                                    // 3) Hide the overlay shortly after the tab is active
+                                //                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                                //                                        showMapHero = false
+                                //                                    }
+                                //                                }
+                                //                                withAnimation(.easeInOut(duration: 3)) { selectedTab = .location }
+                            }
                         }
-                        
-                        LocationCardView() {
-                            selectedTab = .location
-                        }
+                        .padding(.top)
                     }
-                    .padding(.top)
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(content: {
+                    HomeToolbar(
+                        families: session.userFamilies.map { FamilyListItem(id: $0.id ?? "", name: $0.name) },
+                        currentFamilyId: session.familyDoc?.id,
+                        //                    canInvite: vm.isOrganizer(session: session),
+                        pendingFamilyId: pendingFamilyId,
+                        userPhotoURL: session.userDoc?.photoURL,
+                        userDisplayName: session.userDoc?.displayName,
+                        onSelectFamily: { id in
+                            withAnimation(.snappy) { pendingFamilyId = id }
+                            vm.switchFamily(to: id, session: session) },
+                        onNewFamily: { vm.presentNewFamily(session: session) },
+                        onHouseholdDetails: { vm.presentHouseholdDetails() },
+                        onInvite: { vm.presentInvite() },
+                        onProfile: { vm.routeToProfile() },
+                        onSettings: { vm.routeToSettings() }
+                    )
+                })
+                .animation(heroAnimating ? nil : .default, value: showMapHero)
+                
+                // HERO DESTINATION OVERLAY
+                if showMapHero {
+                    LocationView()
+                        .ignoresSafeArea()
+                        .matchedGeometryEffect(id: "mapHero", in: mapHeroNS, isSource: true) // <- hero destination
+                        .transition(.identity) // matchedGeometryEffect will handle transition
+                        .zIndex(1)
+                }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(content: {
-                HomeToolbar(
-                    families: session.userFamilies.map { FamilyListItem(id: $0.id ?? "", name: $0.name) },
-                    currentFamilyId: session.familyDoc?.id,
-                    //                    canInvite: vm.isOrganizer(session: session),
-                    pendingFamilyId: pendingFamilyId,
-                    userPhotoURL: session.userDoc?.photoURL,
-                    userDisplayName: session.userDoc?.displayName,
-                    onSelectFamily: { id in
-                        withAnimation(.snappy) { pendingFamilyId = id }
-                        vm.switchFamily(to: id, session: session) },
-                    onNewFamily: { vm.presentNewFamily(session: session) },
-                    onHouseholdDetails: { vm.presentHouseholdDetails() },
-                    onInvite: { vm.presentInvite() },
-                    onProfile: { vm.routeToProfile() },
-                    onSettings: { vm.routeToSettings() }
-                )
-            })
         }
         .sheet(isPresented: $vm.showHouseholdDetails) {
             if let fam = session.familyDoc, let me = session.userDoc?.id {
@@ -130,6 +159,25 @@ struct HomeView: View {
                 session.subscribeToMemberLocations(for: fid)
             } else {
                 session.stopMemberLocations()
+            }
+        }
+    }
+    
+    private func heroToLocation() {
+        heroAnimating = true
+        // 1) Show overlay (overlay becomes source; card flips to destination)
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) {
+            showMapHero = true
+        }
+        // 2) Switch tab after morph completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
+            withAnimation(.easeInOut(duration: 0.20)) {
+                selectedTab = .location
+            }
+            // 3) Give the tab a beat to appear, then remove overlay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                showMapHero = false
+                heroAnimating = false
             }
         }
     }

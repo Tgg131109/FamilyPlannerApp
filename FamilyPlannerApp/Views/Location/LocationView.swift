@@ -10,11 +10,11 @@ import FirebaseFirestore
 
 struct LocationView: View {
     @EnvironmentObject var session: AppSession
-    @EnvironmentObject var location: GlobalLocationCoordinator
-
+    //    @EnvironmentObject var location: GlobalLocationCoordinator
+    
     @State private var isSharing = true
     @State private var writeTimer: Timer?
-
+    
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -23,11 +23,11 @@ struct LocationView: View {
                 Spacer()
             }
             .padding()
-
+            
             MembersMapView()
         }
         .onAppear {
-            location.startUpdates()
+            session.coordinator.startUpdates()
             startWriter()
         }
         .onDisappear {
@@ -43,21 +43,21 @@ struct LocationView: View {
             }
         }
         // Push an immediate write when the coordinate changes (rounded by your coordinator)
-        .onChange(of: location.lastCoordinateKey) { _, _ in
+        .onChange(of: session.coordinator.lastCoordinateKey) { _, _ in
             guard isSharing else { return }
             
             Task {
-                await session.upsertMyLocationIfNeeded(using: location)
+                await session.upsertMyLocationIfNeeded()
             }
         }
     }
-
+    
     private func startWriter() {
         writeTimer?.invalidate()
         guard isSharing else { return }
         // Keep-alive every ~20s (writer also throttles itself)
         writeTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { _ in
-            Task { await session.upsertMyLocationIfNeeded(using: location) }
+            Task { await session.upsertMyLocationIfNeeded() }
         }
     }
 }
@@ -65,37 +65,27 @@ struct LocationView: View {
 #Preview {
     let session = AppSession()
     
-    session.memberLocations = [
-        MemberLocation(
-            id: "1",
-            uid: "1",
-            displayName: "Toby",
-            photoURL: "https://picsum.photos/seed/toby/88",
-            isSharing: true,
-            coord: GeoPoint(latitude: 36.8508, longitude: -76.2859),
-            lastUpdated: nil
-        ),
-        MemberLocation(
-            id: "2",
-            uid: "2",
-            displayName: "Alex",
-            photoURL: "https://picsum.photos/seed/alex/88",
-            isSharing: true,
-            coord: GeoPoint(latitude: 36.8520, longitude: -76.2875),
-            lastUpdated: nil
-        ),
-        MemberLocation(
-            id: "3",
-            uid: "3",
-            displayName: "Sam",
-            photoURL: "https://picsum.photos/seed/sam/88",
-            isSharing: true,
-            coord: GeoPoint(latitude: 40.7128, longitude: -74.0060), // New York City
-            lastUpdated: nil
-        )
-    ]
+    let _ = {
+        session.memberLocationsByUID = [
+            "1": MemberLocation(id: "1", uid: "1", displayName: "Toby",
+                                photoURL: "https://picsum.photos/seed/toby/88",
+                                isSharing: true,
+                                coord: GeoPoint(latitude: 36.8508, longitude: -76.2859),
+                                lastUpdated: nil),
+            "2": MemberLocation(id: "2", uid: "2", displayName: "Alex",
+                                photoURL: "https://picsum.photos/seed/alex/88",
+                                isSharing: true,
+                                coord: GeoPoint(latitude: 36.8520, longitude: -76.2875),
+                                lastUpdated: nil),
+            "3": MemberLocation(id: "3", uid: "3", displayName: "Sam",
+                                photoURL: "https://picsum.photos/seed/sam/88",
+                                isSharing: true,
+                                coord: GeoPoint(latitude: 40.7128, longitude: -74.0060),
+                                lastUpdated: nil)
+        ]
+    }()
     
-    return LocationView()
+    LocationView()
         .environmentObject(session)
         .environmentObject(GlobalLocationCoordinator.preview(
             lat: 36.8508,

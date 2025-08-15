@@ -12,12 +12,13 @@ import FirebaseFirestore
 
 @MainActor
 final class AppSession: ObservableObject {
+    @Published var coordinator : GlobalLocationCoordinator
     @Published private(set) var route: AppRoute = .splash
     @Published private(set) var userDoc: UserModel?
     @Published private(set) var familyDoc: FamilyModel?
     @Published var errorMessage: String?
     @Published var userFamilies: [FamilyModel] = []         // Household switcher
-    @Published var memberLocations: [MemberLocation] = []   // Household locations
+    //    @Published var memberLocations: [MemberLocation] = []   // Household locations
     
     private let auth: AuthServicing
     private let users: UserRepositorying
@@ -29,18 +30,32 @@ final class AppSession: ObservableObject {
     private var familyMap: [String: FamilyModel] = [:]
     private var familyListeners: [String: ListenerRegistration] = [:]
     
-    // Household locations
+    // Household locations - Keep exactly one listener alive (for the active family)
     private var memberLocationsListener: ListenerRegistration?
+    private var memberLocationsFamilyId: String?
     private var lastLocationWriteAt: Date?
+    
+    // Current household's live locations keyed by member uid (stable IDs for Map)
+    @Published var memberLocationsByUID: [String: MemberLocation] = [:]
+    
+    var memberLocations: [MemberLocation] {
+        Array(memberLocationsByUID.values)
+    }
+    
+    // Cache locations per family to avoid blanking the map on switch
+    // familyId -> (uid -> location)
+    private var memberLocationsCache: [String: [String: MemberLocation]] = [:]
     
     init(
         auth: AuthServicing? = nil,
         users: UserRepositorying? = nil,
-        families: FamilyRepositorying? = nil
+        families: FamilyRepositorying? = nil,
+        coordinator: GlobalLocationCoordinator? = nil
     ) {
         self.auth = auth ?? FirebaseAuthService()
         self.users = users ?? UserRepository()
         self.families = families ?? FamilyRepository()
+        self.coordinator = coordinator ?? GlobalLocationCoordinator()
     }
     
     deinit {
@@ -102,8 +117,8 @@ final class AppSession: ObservableObject {
                     let membershipIds = Array(user.memberships.keys)
                     
                     // Populate families list (pick ONE of the two lines below)
-//                    await fetchFamiliesForMembershipsOnce(membershipIds)
-                    // attachFamilyListeners(for: Set(membershipIds))   // <- if you want live updates instead
+                    //                    await fetchFamiliesForMembershipsOnce(membershipIds)
+                     attachFamilyListeners(for: Set(membershipIds))   // <- if you want live updates instead
                     
                     let fid = userDoc?.currentFamilyId ?? defaultFamilyId(for: user)
                     
@@ -153,6 +168,63 @@ final class AppSession: ObservableObject {
             self.stopMemberLocations()
         }
     }
+    
+    func switchCurrentFamily(to fid: String) async {
+        guard let uid = auth.currentUID else { return }
+        
+        // If already selected, nothing to do
+        if familyDoc?.id == fid { return }
+        
+        // Optimistically reflect the new currentFamilyId in-memory
+        if var u = userDoc { u.currentFamilyId = fid; userDoc = u }
+        
+        // Snap UI to a known FamilyModel immediately if we have it
+        if let known = userFamilies.first(where: { $0.id == fid }) {
+            familyDoc = known
+        }
+        
+        // Swap the location listener now (prevents map blanking)
+        subscribeToMemberLocations(for: fid)
+        
+        // Persist the selection to Firestore
+        if let uid = auth.currentUID {
+            try? await Collections.users.document(uid).updateData([
+                "currentFamilyId": fid,
+                "updatedAt": Timestamp(date: Date())
+            ])
+        }
+        
+        // Fetch the latest family doc once and surface it
+        if let snap = try? await Collections.families.document(fid).getDocument(),
+           var fam = try? snap.data(as: FamilyModel.self) {
+            fam.id = snap.documentID
+            familyDoc = fam
+        }
+        
+        await upsertMyLocationIfNeeded()
+        
+//        if let c = coordinate ?? latestCoordinate {
+//            let name = (userDoc?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+//            ?? (userDoc?.email ?? "Me")
+//            await upsertMyLocationIfNeeded()
+//        }
+        
+        //        try? await Collections.users.document(uid).updateData([
+        //            "currentFamilyId": fid,
+        //            "updatedAt": Timestamp(date: Date())
+        //        ])
+        //
+        //        // Only fetch that family's doc and update listeners
+        //        let fSnap = try? await Collections.families.document(fid).getDocument()
+        //
+        //        if var fam = try? fSnap?.data(as: FamilyModel.self) {
+        //            fam.id = fSnap?.documentID
+        //            self.familyDoc = fam
+        //
+        //            subscribeToMemberLocations(for: fid)
+        //        }
+    }
+    
     
     private func defaultFamilyId(for user: UserModel) -> String? {
         // Assuming user.memberships: [String: Membership] where Membership has joinedAt: Timestamp/Date
@@ -370,36 +442,56 @@ final class AppSession: ObservableObject {
     
     // MARK: - Family location
     func subscribeToMemberLocations(for familyId: String) {
+        // If already watching this family, do nothing
+        if memberLocationsFamilyId == familyId { return }
+        
         // Clean up any prior family listener
         memberLocationsListener?.remove()
         memberLocationsListener = nil
-        memberLocations.removeAll()
+        //        memberLocations.removeAll()
+        memberLocationsFamilyId = familyId
         
+        // Seed current map state from cache so labels don't blink
+        memberLocationsByUID = memberLocationsCache[familyId] ?? memberLocationsByUID
+        
+        // Attach new listener
         memberLocationsListener = Collections.families
             .document(familyId)
-            .memberLocations
-            .whereField("isSharing", isEqualTo: true)
+            .collection("memberLocations")
             .addSnapshotListener { [weak self] snap, err in
-                guard let self else { return }
+                guard let self, let snap else { return }
                 
-                if let err = err {
-                    self.errorMessage = err.localizedDescription
-                    return
+                // Merge by document change to keep annotation IDs stable
+                var next = self.memberLocationsByUID
+                for change in snap.documentChanges {
+                    let uid = change.document.documentID
+                    switch change.type {
+                    case .added, .modified:
+                        if let loc = try? change.document.data(as: MemberLocation.self) {
+                            next[uid] = loc
+                        }
+                    case .removed:
+                        next.removeValue(forKey: uid)
+                    }
                 }
                 
-                self.memberLocations = snap?.documents.compactMap { doc in
-                    try? doc.data(as: MemberLocation.self)
-                } ?? []
+                // Publish + cache for this family
+                self.memberLocationsByUID = next
+                self.memberLocationsCache[familyId] = next
             }
     }
     
     func stopMemberLocations() {
         memberLocationsListener?.remove()
         memberLocationsListener = nil
-        memberLocations.removeAll()
+        //        memberLocations.removeAll()
+        
+        familyDoc = nil
+        userFamilies.removeAll()
+        memberLocationsByUID.removeAll()
     }
     
-    func upsertMyLocationIfNeeded(using coordinator: GlobalLocationCoordinator) async {
+    func upsertMyLocationIfNeeded() async {
         guard let uid = auth.currentUID,
               let fid = userDoc?.currentFamilyId ?? familyDoc?.id,
               let myCoord = coordinator.lastCoordinate
@@ -408,36 +500,43 @@ final class AppSession: ObservableObject {
         // Optional: honor the global throttle heuristic
         guard coordinator.shouldFetchNow(for: myCoord) else { return }
         
+        guard let memberships = userDoc?.memberships, let uid = userDoc?.id else { return }
+        let db = Firestore.firestore()
         // Extra: hard time throttle to avoid chatty writes
         let now = Date()
-        if let last = lastLocationWriteAt, now.timeIntervalSince(last) < 20 { return }
-        lastLocationWriteAt = now
         
-        let ref = Collections.families
-            .document(fid)
-            .memberLocations
-            .document(uid)
+        if let last = lastLocationWriteAt, now.timeIntervalSince(last) < 20 { return }
+        
+        lastLocationWriteAt = now
         
         let displayName = userDoc?.displayName ?? "Member"
         let photo = userDoc?.photoURL ?? Auth.auth().currentUser?.photoURL?.absoluteString
+        let batch = db.batch()
         
-        var data: [String: Any] = [
-            "uid": uid,
-            "displayName": displayName,
-            "isSharing": true,
-            "coord": GeoPoint(latitude: myCoord.latitude, longitude: myCoord.longitude),
-            "lastUpdated": FieldValue.serverTimestamp()
-        ]
-        
-        if let p = photo {
-            data["photoURL"] = p
+        for (fid, _) in memberships {
+            var data: [String: Any] = [
+                "uid": uid,
+                "displayName": displayName,
+                "isSharing": true,
+                "coord": GeoPoint(latitude: myCoord.latitude, longitude: myCoord.longitude),
+                "lastUpdated": FieldValue.serverTimestamp()
+            ]
+            
+            if let p = photo {
+                data["photoURL"] = p
+            }
+            
+            let ref = Collections.families
+                .document(fid)
+                .collection("memberLocations")
+                .document(uid)
+            
+            batch.setData(data, forDocument: ref, merge: true)
         }
         
-        do {
-            try await ref.setData(data, merge: true)
-            coordinator.recordFetch(for: myCoord)
-        } catch {
-            self.errorMessage = error.localizedDescription
+        do { try await batch.commit() } catch {
+            // optional: surface an error if you track one
+            print("upsertMyLocationToAllFamilies failed:", error.localizedDescription)
         }
     }
     

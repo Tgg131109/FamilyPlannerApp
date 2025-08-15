@@ -161,7 +161,7 @@ final class HomeViewModel: ObservableObject {
                 "updatedAt": Timestamp(date: Date())
             ])
             
-            await session.performRefresh()  // simple wrapper that calls your refreshState(initialEvent: false)
+            await session.switchCurrentFamily(to: id)
         }
     }
     
